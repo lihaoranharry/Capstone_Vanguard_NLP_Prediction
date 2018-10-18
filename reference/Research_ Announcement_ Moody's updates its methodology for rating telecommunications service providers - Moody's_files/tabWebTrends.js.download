@@ -1,0 +1,182 @@
+﻿$.webTrendsOnTab = $.webTrendsOnTab || {};
+
+$.webTrendsOnTab.trigerWebTrendEvent = function (cg_n, cg_s, cg_sec3, dl) {
+    dcsMultiTrack({
+        'WT.dl': dl,
+        'WT.cg_n': cg_n,
+        'WT.cg_s': cg_s,
+        'WT.cg_sec3': cg_sec3
+    });
+};
+
+$.webTrendsOnTab.setMetaValue = function (name, content) {
+    var $obj = $('head meta[name="' + name + '"]');
+    if ($obj.length > 0) {
+        $obj.attr('content', content);
+    } else {
+        $('head').append('<meta content="' + content + '" name="' + name + '">');
+    }
+},
+
+$.webTrendsOnTab.SetWebTrendLoadArgs = function (cg_n, cg_s, cg_sec3, cg_section4) {
+    $.webTrendsOnTab.setMetaValue("WT.cg_n", cg_n);
+    $.webTrendsOnTab.setMetaValue("WT.cg_s", cg_s);
+    $.webTrendsOnTab.setMetaValue("WT.dl", 99);
+    $.webTrendsOnTab.setMetaValue("WT.cg_sec4", cg_section4);
+    $('head meta[name="WT.cg_sec5"]').remove();
+    $('head meta[name="WT.cg_sec6"]').remove();
+    $('head meta[name="WT.z_referringsource"]').remove();
+    if (cg_sec3 == "") {
+        $('head meta[name="WT.cg_sec3"]').remove();
+    } else {
+        $.webTrendsOnTab.setMetaValue("WT.cg_sec3", cg_sec3);
+    }
+    $.webTrendsOnTab.trigerWebTrendEvent(cg_n, cg_s, cg_sec3, 0, cg_section4);
+};
+
+$.webTrendsOnTab.trigerWebTrendClick = function (cg_n, cg_s, cg_sec3) {
+    $.webTrendsOnTab.trigerWebTrendEvent(cg_n, cg_s, cg_sec3, 99);
+};
+
+function addWebTrendsForDownloads() {
+    $(".leftSectionOverview table").each(function () {
+        var table = $(this);
+        var title = table.find("tr:first-child>td:first-child");
+        if (title && title[0].innerText !== "Downloads") {
+            return true;
+        }
+        
+        var columnNames = [];
+        table.find("tr:nth-child(2)").first().find("td b").each(function () {
+            columnNames.push($(this).text().replace(/([^A-Za-z|0-9]*)/g, ""));
+        });
+        
+        table.find("tr:nth-child(n+3)").each(function () {
+            var targetTr = $(this);
+            var database = targetTr.children().first().text().replace("&","And").replace(/([^A-Za-z|0-9]*)/g, "");
+
+            targetTr.find("td").each(function(index, tdTarget) {
+
+                $(tdTarget).find("a").each(function() {
+                    var tagA = $(this);
+                    tagA.click(function () {
+                        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6');
+                        dcsMultiTrack({
+                            'WT.dl': '99',
+                            'WT.z_referringsource': 'DRA~Downloads',
+                            'WT.z_refsource2': 'DRA',
+                            'WT.pn_id': 'Databases',
+                            'WT.z_pn_id2': database + '~' + columnNames[index],
+                            'WT.z_refsource3': tagA.text().replace(/([^A-Za-z|0-9]*)/g, "")
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+function addWebTrendsForSelectReport() {
+    var pnId = window.location.href.indexOf("report/history") > -1 ? "RatingTransitions_Historical" : "DefaultRate_Historical";
+    $('#ReportCheckBoxList .reportListContainer').find('li').each(function () {
+        $(this).click(function (e) {
+            var target = $(e.target);
+            if (target.attr("type") === "checkbox") {
+                return;
+            } else {
+                mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6,WT.z_pn_id2');
+                dcsMultiTrack({
+                    'WT.dl': '99',
+                    'WT.z_referringsource': 'DRA~SelectReport',
+                    'WT.z_refsource2': 'DRA',
+                    'WT.pn_id': pnId,
+                    'WT.z_pn_id2': '',
+                    'WT.z_refsource3': 'Icon'
+                });
+            }
+        });
+    });
+};
+
+function addWebTrendsForDeleteReport() {
+    var pnId = window.location.href.indexOf("report/history") > -1 ? "RatingTransitions_Historical" : "DefaultRate_Historical";
+    $('#reportDeleteButton').click(function () {
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6,WT.z_pn_id2');
+        dcsMultiTrack({
+            'WT.dl': '99',
+            'WT.z_referringsource': 'DRA~DeleteReport',
+            'WT.z_refsource2': 'DRA',
+            'WT.pn_id': pnId,
+            'WT.z_pn_id2': '',
+            'WT.z_refsource3': 'Icon'
+        });
+    });
+};
+
+function addWebTrendsForCreateNewReport() {
+    $('#CreateReportButtonList .createReportItem').each(function () {
+        $(this).mouseup(function (target) {
+            var pnId = window.location.href.indexOf("report/history") > -1 ? "RatingTransitions" : "DefaultRate";
+            var pnId2 = $(target.currentTarget).attr("data-value") == '/report/default' ? 'DefaultRateTimeseries' : 'RatingMigration';
+            mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6');
+            dcsMultiTrack({
+                'WT.dl': '99',
+                'WT.z_referringsource': 'DRA~CreateNewReport',
+                'WT.z_refsource2': 'DRA',
+                'WT.pn_id': pnId,
+                'WT.z_pn_id2': pnId2,
+                'WT.z_refsource3': 'Icon'
+            });
+
+        });
+    });
+};
+
+$(function () {
+    var $currrTab = $("#DraTabs .mdcCurrentDraTab a");
+    if ($currrTab.length != 0) {
+        var currTabName = $currrTab.text();
+        var cg_n = "Credit Risk Default Rate";
+        var version = (window.location.href.indexOf("-v2") > -1 || window.location.href.indexOf("v=v2") > -1) ? "V2" : "V1";
+        var tabName_sec3 = "";
+        if (window.location.href.indexOf("Default-and-Recovery-Analytics") > -1
+            || window.location.href.indexOf("credit-transition-model-v2/report") > -1
+            || window.location.href.indexOf("credit-transition-model/report") > -1) {
+            //Database tab and Custom Forcast tab
+            tabName_sec3 = "";
+        } else if (window.location.href.indexOf("credit-model") > -1) {
+            //CRC tab
+            tabName_sec3 = (window.location.href.indexOf("report/default") > -1) ? "Default Rate - Historical" : "Rating Transitions - Historical";
+        } else if (window.location.href.indexOf("credit-transition-model") > -1) {
+            //CTM tab
+            tabName_sec3 = (window.location.href.indexOf("default-rate") > -1) ? "Default Rate - Forecast" : "Rating Transitions - Forecast";
+        }
+        
+        $.webTrendsOnTab.SetWebTrendLoadArgs(cg_n, currTabName, tabName_sec3, version);
+        //$("#DraTabs a").click(function () {
+        //    var tabName = $(this).text();
+        //    var tabName_sec3 = $(this).attr("href").indexOf("credit-model") > -1 ?
+        //        "Historical_default" :
+        //        "Forecast_default";
+
+        //    var cg_sec3 = tabName == "Default Rate" || tabName == "Rating Transitions" ?
+        //        tabName_sec3 :
+        //        "";
+        //    $.webTrendsOnTab.trigerWebTrendClick(cg_n, tabName, cg_sec3);
+        //});
+
+        //$(".mdcDraSubTab a").click(function () {
+        //    var subTabName = $(this).text();
+        //    var cg_sec3 = subTabName == "Forecast" ? "Forecast" : "Historical_subtabclick";
+        //    $.webTrendsOnTab.trigerWebTrendClick(cg_n, currTabName, cg_sec3);
+        //});
+    }
+    
+    var v2 = (window.location.href.indexOf("-v2") > -1 || window.location.href.indexOf("Default-and-Recovery-Analytics") > -1);
+    if (v2) {
+        addWebTrendsForDownloads();
+        addWebTrendsForSelectReport();
+        addWebTrendsForDeleteReport();
+        addWebTrendsForCreateNewReport();
+    }
+}(jQuery));

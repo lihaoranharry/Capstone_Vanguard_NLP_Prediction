@@ -1,0 +1,1463 @@
+(function(root, $, undefined) {
+	"use strict";
+
+	var ui = {},
+		KEYS = {
+			LEFT: 37,
+			UP: 38,
+			RIGHT: 39,
+			DOWN: 40,
+			DEL: 46,
+			TAB: 9,
+			RETURN: 13,
+			ESC: 27,
+			COMMA: 188,
+			PAGEUP: 33,
+			PAGEDOWN: 34,
+			BACKSPACE: 8
+		};
+
+	// screen
+	ui.screen || (function() {
+		var getDimensions = function() {
+				var xScroll, yScroll, pageWidth, pageHeight, windowWidth, windowHeight, docWidth, docHeight, document = root.document,
+					documentElement = document.documentElement,
+					body = document.body,
+					Math = root.Math,
+					self = root.self;
+
+				if(root.innerHeight && root.scrollMaxY) {
+					xScroll = root.innerWidth + root.scrollMaxX;
+					yScroll = root.innerHeight + root.scrollMaxY;
+				} else if(body.scrollHeight > body.offsetHeight) { // all but Explorer Mac
+					xScroll = body.scrollWidth;
+					yScroll = body.scrollHeight;
+				} else { // Explorer Mac...would also work in Explorer 6 Strict, Mozilla and Safari
+					xScroll = body.offsetWidth;
+					yScroll = body.offsetHeight;
+				}
+
+				if(self && self.innerHeight) { // all except Explorer
+					if(documentElement && documentElement.clientWidth) {
+						windowWidth = documentElement.clientWidth;
+					} else {
+						windowWidth = self.innerWidth;
+					}
+					windowHeight = self.innerHeight;
+				} else if(documentElement && documentElement.clientHeight) { // Explorer 6 Strict Mode
+					windowWidth = documentElement.clientWidth;
+					windowHeight = documentElement.clientHeight;
+				} else if(body) { // other Explorers
+					windowWidth = body.clientWidth;
+					windowHeight = body.clientHeight;
+				}
+				// for small pages with total height less then height of the viewport
+				if(yScroll < windowHeight) {
+					pageHeight = windowHeight;
+				} else {
+					pageHeight = yScroll;
+				}
+				// for small pages with total width less then width of the viewport
+				if(xScroll < windowWidth) {
+					pageWidth = xScroll;
+				} else {
+					pageWidth = windowWidth;
+				}
+
+				docHeight = Math.max(body.scrollHeight || 0, body.offsetHeight || 0, body.clientHeight || 0);
+				docWidth = Math.max(body.scrollWidth || 0, body.offsetWidth || 0, body.clientWidth || 0);
+				if(documentElement) {
+					docHeight = Math.max(docHeight, documentElement.scrollHeight || 0, documentElement.offsetHeight || 0, documentElement.clientHeight || 0);
+					docWidth = Math.max(docWidth, documentElement.scrollWidth || 0, documentElement.offsetWidth || 0, documentElement.clientWidth || 0);
+				}
+
+				return {
+					'pageWidth': pageWidth,
+					'pageHeight': pageHeight,
+					'windowWidth': windowWidth,
+					'windowHeight': windowHeight,
+					'docWidth': docWidth,
+					'docHeight': docHeight
+				};
+			},
+
+			//zIndex
+			_zIndex = 20000,
+			zIndex = function() {
+				_zIndex = _zIndex + 1;
+				return _zIndex;
+			},
+			screen = {
+				getDimensions: getDimensions,
+				zIndex: zIndex
+			};
+
+		ui.screen = screen;
+	}());
+
+	// popup
+	ui.popup || (function() {
+		var DATA_KEY = "mdc-ui-popup",
+			_instance_counter = 0,
+			popup = function(id, options) {
+				options = $.extend(true, {
+					autoOpen: true,
+					isFixed: true,
+					// {name: '', className: '', action: function(btn, popup){}, isDefault: true }
+					buttons: [],
+					btnAlignment: "right",
+					className: "",
+					modal: false,
+					title: "",
+					width: 300,
+					height: "auto",
+					keepDomPosition: true,
+					close: true,
+					onClosed: $.noop
+				}, options || {});
+
+				var originalElement = $(id),
+					instance = originalElement.data(DATA_KEY);
+
+				if (instance) {
+					return instance;
+				}
+
+				options.title = options.title || originalElement.attr("title") || '';
+
+				_instance_counter = _instance_counter + 1;
+
+				var containerID = "mdc-popup-" + _instance_counter,
+					overlayID = options.modal ? containerID + '-overlay' : '',
+					container, overlayContainer, _isInited = false,
+					_init = function() {
+						var CONTAINER_HTML_TEMPLATE = '<div id="$containerID" class="mdc-popup"><div class="mdc-popup-content-l"><div class="mdc-popup-content-r"><div class="mdc-popup-content"></div></div></div></div>',
+							TOP_ROUNDED_CORNER_HTML_TEMPLATE = '<div class="mdc-popup-top clearfix"><div class="mdc-popup-top-c"></div><div class="mdc-popup-top-l"></div><div class="mdc-popup-top-r"></div></div>',
+							BOTTOM_ROUNDED_CORNER_HTML_TEMPLATE = '<div class="mdc-popup-bottom clearfix"><div class="mdc-popup-bottom-c"></div><div class="mdc-popup-bottom-l"></div> <div class="mdc-popup-bottom-r"></div></div>',
+							HEADER_HTML_TEMPLATE = '<div class="mdc-popup-header-l"><div class="mdc-popup-header-r"><div class="mdc-popup-header">$title $colse</div></div></div>',
+							COLSE_HTML = '<a class="mdc-popup-close" href="javascript:;" title="Close">Close</a>',
+							BTNS_CONTAINER_HTML = '<div class="mdc-popup-btns-l"><div class="mdc-popup-btns-r"><div class="mdc-popup-btns"></div></div></div>',
+							BTN_HTML_TEMPLATE = '<a href="javascript:;" class="mdc-popup-btn"><b><span>$name</span></b></a>',
+
+							OVERLAY_HTML_TEMPLATE = '<div class="mdc-overlay"></div>',
+
+							CONTAINER_CONTENT_HEIGHT_DIFF = 70,
+
+							containerHtml = CONTAINER_HTML_TEMPLATE.replace('$containerID', containerID),
+							headerHtml = HEADER_HTML_TEMPLATE.replace('$title', options.title);
+						headerHtml = headerHtml.replace('$colse', options.close ? COLSE_HTML : "");
+
+						$(id).wrap(containerHtml);
+
+						container = $('#' + containerID);
+
+						if (!options.keepDomPosition) {
+							container.appendTo("body");
+						}
+
+						container.css({
+							width: options.width,
+							height: options.height
+						}).addClass(options.className);
+
+						//set content height
+						if (options.height && options.height !== 'auto') {
+							container.find('div.mdc-popup-content').css("height", options.height - CONTAINER_CONTENT_HEIGHT_DIFF);
+						}
+
+						if (options.close || options.title) {
+							$(headerHtml).on('click', 'a.mdc-popup-close', hide).prependTo(container);
+						}
+
+						container.prepend(TOP_ROUNDED_CORNER_HTML_TEMPLATE);
+
+						//buttons
+						if (options.buttons && options.buttons.length > 0) {
+							var btnContainer = $(BTNS_CONTAINER_HTML),
+								BTNS_SELECTOR = ".mdc-popup-btns";
+
+							$.each(options.buttons, function(index, btn) {
+								var btnHtml = BTN_HTML_TEMPLATE.replace('$name', btn.name),
+									MOUSEDOWN_CLASS = 'active',
+									className = (function() {
+										var r = btn.className ? btn.className : '';
+										r += btn.isDefault ? ' mdc-popup-btn-default' : '';
+										return r;
+									}());
+
+								$(btnHtml).addClass(className).on('click', function() {
+									if (btn.action) {
+										btn.action.call(instance, btn, instance);
+									}
+								}).on('mousedown', function() {
+									$(this).addClass(MOUSEDOWN_CLASS);
+								}).on('mouseoup, mouseout', function() {
+									$(this).removeClass(MOUSEDOWN_CLASS);
+								}).appendTo(btnContainer.find(BTNS_SELECTOR));
+							});
+
+							btnContainer.find(BTNS_SELECTOR).addClass(options.btnAlignment);
+							btnContainer.appendTo(container);
+						}
+
+						container.append(BOTTOM_ROUNDED_CORNER_HTML_TEMPLATE);
+
+						if (options.modal) {
+							$(OVERLAY_HTML_TEMPLATE).attr("id", overlayID).appendTo(container.parent());
+							overlayContainer = $("#" + overlayID);
+						}
+
+						if (options.autoOpen) {
+							show();
+						} else {
+							hide();
+						}
+
+						_isInited = true;
+					},
+
+					autoFocusDefaultButton = function() {
+						var btn = container.find('.mdc-popup-btn-default');
+						if (btn.length) {
+							btn[0].focus();
+						}
+					},
+
+					show = function() {
+						var selfWidth = container.width(),
+							selfHeight = container.height(),
+							winDimensions = ui.screen.getDimensions(),
+							containerWidth = winDimensions.windowWidth,
+							containerHeight = winDimensions.windowHeight,
+
+							left,
+							top,
+
+							math = root.Math;
+
+						if (options.isFixed) {
+							left = (containerWidth > selfWidth) ? math.floor((containerWidth - selfWidth) / 2) : 0;
+							top = (containerHeight > selfHeight) ? math.floor((containerHeight - selfHeight) / 2) : 0;
+						} else {
+							left = ($(window).width() - selfWidth) / 2 - $(window).width() / 8;
+							top = ($(window).height() - selfHeight) / 2 + $(window).height() / 9;
+						}
+
+						if (overlayContainer) {
+							overlayContainer.css({
+								"width": winDimensions.pageWidth + 'px',
+								"height": winDimensions.pageHeight + 'px',
+								"zIndex": ui.screen.zIndex()
+							}).show();
+						}
+
+						container.css({
+							"left": left,
+							"top": top,
+							"zIndex": ui.screen.zIndex()
+						}).show();
+
+						autoFocusDefaultButton();
+					},
+					hide = function() {
+						container.hide();
+
+						if (overlayContainer) {
+							overlayContainer.hide();
+						}
+
+						if (_isInited && options.onClosed) {
+							options.onClosed.call(instance, instance);
+						}
+					},
+					_close = function() {
+						container.remove();
+						overlayContainer.remove();
+
+						container = undefined;
+						overlayContainer = undefined;
+					};
+
+				instance = {
+					show: show,
+					hide: hide,
+					_close: _close
+				};
+
+				_init();
+
+				$(id).data(DATA_KEY, instance);
+				return instance;
+			};
+
+		ui.popup = popup;
+	}());
+
+	// ui.alert
+	ui.alert || (function() {
+		var alert = function(options) {
+				options = $.extend(true, {
+					msg: '',
+					onClosed: $.noop
+				}, options || {}, {
+					modal: true,
+					buttons: options.buttons || [{
+						'name': 'Ok',
+						'action': function(btn, instance) {
+							options.onClosed(instance);
+						}
+					}],
+					autoOpen: true
+				});
+
+				var MSG_HTML_TEMPLATE = '<div style="font-size:12px;color:#333;text-align:left;line-height:18px;"></div>',
+					now = new root.Date(),
+					msgID = 'mdc-ui-alert-' + now.getTime(),
+
+					preOnClosed = options.onClosed,
+					closeCallback = function(instance) {
+						instance._close();
+						if(preOnClosed) {
+							preOnClosed();
+						}
+					};
+				options.onClosed = closeCallback;
+
+				$(MSG_HTML_TEMPLATE).attr('id', msgID).html(options.msg).appendTo("body");
+
+				ui.popup("#" + msgID, options);
+			};
+
+
+		ui.alert = alert;
+	}());
+
+    ui.msgbox || (function() {
+        var msgbox = function (options) {
+            options = $.extend(true, {
+                onClosed: $.noop
+            }, options || {}, {
+                modal: true,
+                keepDomPosition: false,
+                close: false,
+                className: options.className || 'mdc-popup-square',
+                width: 480,
+                buttons: options.buttons ||
+                [{
+                    'name': 'OK',
+                    'action': function (btn, instance) {
+                        instance.hide();
+                    }
+                }],
+                autoOpen: true
+            });
+
+            return ui.popup("#" + options.msgID, options);
+        };
+
+        ui.msgbox = msgbox;
+    }());
+
+	ui.selectionList || (function() {
+		// selection list based on jstree(http://www.jstree.com/)
+		var selectionList = function(selector, options) {
+			options = $.extend(true, {
+				"theme": {
+					"theme": "mdc",
+					"dots": false,
+					"icons": false
+				},
+				"dnd": true, // drag and drop
+				"expandAll": options.expandAll,
+				"source": [],
+				"tips": false
+			}, options || {});
+
+			var DISABLED_NODE_CLASS_NAME = "jstree-disabled",
+
+				originalContainer = $(selector),
+				container = (function() {
+					var treeDiv = originalContainer.find(">div");
+					if (!treeDiv.length) {
+						treeDiv = $("<div />");
+						treeDiv.appendTo(originalContainer);
+					}
+					return treeDiv;
+				}()),
+				init = function() {
+					var treeParams = {},
+						initTreeParams = function() {
+							var desc = "init tree params",
+								initBasicParams = function() {
+									treeParams = $.extend(true, treeParams, {
+										"json_data": {
+											"data": options.source
+										},
+										"themes": options["theme"],
+										"plugins": ["themes", "json_data", "ui"]
+									});
+								},
+								initDragAndDropParams = function() {
+									if (!options.dnd) {
+										return;
+									}
+
+									treeParams["plugins"].push("crrm");
+									treeParams["plugins"].push("dnd");
+
+									treeParams = $.extend(true, treeParams, {
+										"dnd": {
+											"copy_modifier": "meta",
+											"drop_target": false,
+											"drag_target": false
+										}
+									});
+
+									treeParams = $.extend(true, treeParams, {
+										"crrm": {
+											"move": {
+												"check_move": function(m) {
+													// move within the same parent only
+													var p = this._get_parent(m.o);
+													if (!p) {
+														return false;
+													}
+													p = (p === -1) ? this.get_container() : p;
+													if (p === m.np) {
+														return true;
+													}
+													if (p[0] && m.np[0] && p[0] === m.np[0]) {
+														return true;
+													}
+													return false;
+												}
+											}
+										}
+									});
+								};
+
+							initBasicParams();
+							initDragAndDropParams();
+						},
+
+						initDisabledNodeSelectBehavior = function() {
+							container.on('before.jstree', function(e, data) {
+								var instance = data.inst,
+									func = data.func,
+									getLink = function() {
+										var ele = $(data.args[0]),
+											isHyperLink = (ele.prop('tagName') === 'A'),
+											result = isHyperLink ? ele : ele.find(">a");
+
+										return result;
+									},
+									link = getLink(),
+									isEnabled = !link.hasClass(DISABLED_NODE_CLASS_NAME),
+									isSelectNodeFunc = (func === 'select_node');
+
+								if (isSelectNodeFunc && !isEnabled) {
+									return false;
+								}
+							});
+						},
+						initBackgroundImagePosition = function() {
+							if ($.browser.msie && root.parseInt($.browser.version, 10) < 8) {
+								// IE 7's background-attachment 'scroll' doesn't behave correctly
+								// but it just fit the our requirement here, hahaha...
+								return;
+							}
+
+							var BACKGROUND_IMAGE_HEIGHT = 36;
+							originalContainer.on('scroll', function(e) {
+								var scrollTop = originalContainer.scrollTop(),
+									offset = scrollTop % BACKGROUND_IMAGE_HEIGHT;
+								originalContainer.css("background-position", "left -" + offset + "px");
+							});
+						},
+						setContainerWidth = function() {
+							var originalContainerWidth = originalContainer.width(),
+								containerScrollWidth;
+							container.css("width", originalContainerWidth + 'px');
+							setTimeout(function() {
+								containerScrollWidth = container[0].scrollWidth;
+								containerScrollWidth && container.css("width", containerScrollWidth + 'px');
+							}, 50);
+						},
+						initSetContainerWidthBehavior = function() {
+							var events = ["after_open.jstree", "after_close.jstree", "loaded.jstree", "move.jstree", "rename.jstree", "create.jstree", "remove.jstree"],
+								checkVisibilityTimer;
+							$.each(events, function(index, eventName) {
+								container.on(eventName, setContainerWidth);
+							});
+							checkVisibilityTimer = setInterval(function() {
+								if (container.is(":visible")) {
+									clearInterval(checkVisibilityTimer);
+									setContainerWidth();
+								}
+							}, 600);
+						},
+						initTree = function() {
+							originalContainer.addClass('selection-panel');
+							if (options.expandAll) {
+								container.jstree(treeParams).bind("loaded.jstree", function(event, data) {
+									$(this).jstree("open_all");
+								});
+							} else {
+								container.jstree(treeParams);
+							}
+							initDisabledNodeSelectBehavior();
+							initSetContainerWidthBehavior();
+						},
+						initTips = function() {
+							if (!options.tips) {
+								return;
+							}
+
+							container.on("mouseover", "a", function() {
+								var link = $(this),
+									title = link.attr('title');
+								if (title) {
+									return;
+								}
+
+								link.attr('title', link.text());
+							});
+						};
+
+					initTreeParams();
+					initBackgroundImagePosition();
+					initTree();
+					initTips();
+				},
+
+				countNodes = function() {
+					//TODO: change this logic
+					var countNodesUnder = function(source) {
+						var num = 0,
+							i = 0,
+							l = source.length,
+							node;
+
+						for (; i < l; i++) {
+							node = source[i];
+							num += 1;
+
+							if (!node.children) {
+								continue;
+							}
+
+							num += countNodesUnder(node.children);
+						}
+
+						return num;
+					};
+
+					return countNodesUnder(options["source"]);
+				},
+
+				isNodeEnabled = function(node) {
+					return !$(node).find(">a").hasClass(DISABLED_NODE_CLASS_NAME);
+				},
+				disableNode = function(node) {
+					$(node).find(">a").addClass(DISABLED_NODE_CLASS_NAME);
+					container.jstree("deselect_node", node);
+				},
+				enableNode = function(node) {
+					$(node).find(">a").removeClass(DISABLED_NODE_CLASS_NAME);
+				},
+
+				getAllNodes = function() {
+					return container.find("li");
+				},
+				getSelectedNodes = function() {
+					var nodes = container.jstree("get_selected");
+					return nodes;
+				},
+
+				getEnabledNodes = function() {
+					var allNodes = getAllNodes(),
+						result = [];
+					$.each(allNodes, function(idx, node) {
+						if (isNodeEnabled(node)) {
+							result.push(node);
+						}
+					});
+
+					return result;
+				};
+
+			init();
+
+			return {
+				"container": container,
+				"countNodes": countNodes,
+				"isNodeEnabled": isNodeEnabled,
+				"disableNode": disableNode,
+				"enableNode": enableNode,
+				"getAllNodes": getAllNodes,
+				"getSelectedNodes": getSelectedNodes,
+				"getEnabledNodes": getEnabledNodes
+			};
+		};
+
+		ui["selectionList"] = selectionList;
+	}());
+
+	ui.selectionListsComponent || (function() {
+		// selection lists component - add/remove between two selection lists
+		var selectionListsComponent = function(options) {
+			options = $.extend(true, {
+				sourceSelector: undefined,
+				destinationSelector: undefined,
+				addSelector: undefined,
+				removeSelector: undefined,
+				addAllSelector: undefined,
+				removeAllSelector: undefined,
+				expandAll: false, //if is trure,expand all treenode
+				autoDetectOperationStatus: true, // auto detect add/remove/add all/remove all buttons' status.
+				itemIdentifier: undefined, // function(node, selectionList) { return $(node).data('id'); }
+				callbacks: {
+					onAdding: undefined, // function(node, selectionListsComponent) { return true; } - return false will stop adding.
+					onAdded: undefined, // function(node, selectionListsComponent) { } 
+					onRemoving: undefined, // function(node, selectionListsComponent) { return true; } - return false will stop removing.
+					onRemoved: undefined, // function(node, selectionListsComponent) { } 
+					onSelectionPositionAdjusted: undefined, // function(nodes, selectionListsComponent) { } 
+					onLoaded: undefined // function(e, data, instance) { }
+				}
+			}, options || {});
+
+			var instance,
+
+				sourceSelectionList,
+				desSelectionList,
+
+				FLAT_SELECTION_THEME = "mdc",
+				TREE_SELECTION_THEME = "mdc-tree",
+
+				assertNotUndefined = function(s, errMsg) {
+					if (s === undefined) {
+						throw errMsg;
+					}
+				},
+
+				defaultItemIdentifier = function(node, selectionList) {
+					return $.trim(selectionList.container.jstree("get_text", node));
+				},
+
+				sourceTypeItemIdentifier = function(node, selectionList) {
+					return $(node).data('source');
+				},
+				defaultDataIdentifier = function(data) {
+					var result = data;
+					if (data) {
+						if (data["data"] && data["data"].hasOwnProperty("title")) {
+							result = data["data"]["title"];
+						}
+					}
+
+					return result;
+				},
+				itemIdentifier = options.itemIdentifier ? options.itemIdentifier : defaultItemIdentifier,
+
+				initTreeFor = function(selector) {
+					return ui.selectionList(selector, {
+						"source": [],
+						"theme": {
+							"theme": FLAT_SELECTION_THEME
+						},
+						"expandAll": options.expandAll,
+						"tips": true
+					});
+				},
+				initSourceSelectionList = function() {
+					assertNotUndefined(options.sourceSelector, "source selector must be defined.");
+					sourceSelectionList = initTreeFor(options.sourceSelector);
+				},
+				initDesSelectionList = function() {
+					assertNotUndefined(options.destinationSelector, "destination selector must be defined.");
+					desSelectionList = initTreeFor(options.destinationSelector);
+
+					desSelectionList.container.on("create_node.jstree", function(e, data) {
+						if (options.callbacks && options.callbacks.onAdded) {
+							options.callbacks.onAdded(data.rslt.obj, instance);
+						}
+					});
+
+					desSelectionList.container.on("delete_node.jstree", function(e, data) {
+						if (options.callbacks && options.callbacks.onRemoved) {
+							options.callbacks.onRemoved(data.rslt.obj, instance);
+						}
+						detectAndSetAddAllOperationStatus();
+					});
+
+					desSelectionList.container.on("move_node.jstree", function(e, data) {
+						if (options.callbacks && options.callbacks.onSelectionPositionAdjusted) {
+							options.callbacks.onSelectionPositionAdjusted(data.rslt.o, instance);
+						}
+					});
+
+					desSelectionList.container.on("select_node.jstree", descItemSelectedHandler);
+
+					desSelectionList.container.on("loaded.jstree", function(e, data) {
+						if (options.callbacks && options.callbacks.onLoaded) {
+							options.callbacks.onLoaded(e, data, instance);
+						}
+					});
+				},
+
+				getMatchedItemsById = function(findInSelectionList, id) {
+					var matchedNodes = [],
+						allNodes = findInSelectionList.getAllNodes();
+
+					$.each(allNodes, function(index, tentativeMatchedNode) {
+						var currentNodeIdentity = itemIdentifier(tentativeMatchedNode, findInSelectionList);
+						if (currentNodeIdentity === id) {
+							matchedNodes.push(tentativeMatchedNode);
+						}
+					});
+
+					return matchedNodes;
+				},
+				getMatchedItemsByItem = function(findInSelectionList, node, nodeSourceSelectionList) {
+					var id = itemIdentifier(node, nodeSourceSelectionList);
+
+					return getMatchedItemsById(findInSelectionList, id);
+				},
+
+				getSelectedSourceItems = function() {
+					return sourceSelectionList.getSelectedNodes();
+				},
+				getSelectedDesItems = function() {
+					return desSelectionList.getSelectedNodes();
+				},
+				getAllDesItems = function() {
+					return desSelectionList.getAllNodes();
+				},
+				getSelectedValues = function() {
+					var selectedItems = getAllDesItems(),
+						result = [];
+					$.each(selectedItems, function(index, item) {
+						var identity = itemIdentifier(item, desSelectionList);
+						result.push(identity);
+					});
+
+					return result;
+				},
+				getSelectedTexts = function() {
+					var selectedItems = getAllDesItems(),
+						result = [];
+					$.each(selectedItems, function(index, item) {
+						var text = defaultItemIdentifier(item, desSelectionList);
+						result.push(text);
+					});
+
+					return result;
+				},
+				getSelectedSourceTypes = function() {
+					var selectedItems = getAllDesItems(),
+						result = [];
+					$.each(selectedItems, function(index, item) {
+						var type = sourceTypeItemIdentifier(item, desSelectionList);
+						result.push(type);
+					});
+
+					return result;
+				},
+				setOperationButtonStatus = function(selector, enabled) {
+					if (options.autoDetectOperationStatus && selector) {
+						if (enabled) {
+							$(selector).removeAttr('disabled').removeClass('disabled');
+						} else {
+							$(selector).attr("disabled", "disabled").addClass('disabled');
+						}
+					}
+				},
+				setAddOperationStatus = function(enabled) {
+					setOperationButtonStatus(options.addSelector, enabled);
+				},
+				detectAndSetAddOperationStatus = function() {
+					setAddOperationStatus(sourceSelectionList.getSelectedNodes().length);
+				},
+				setAddAllOperationStatus = function(enabled) {
+					setOperationButtonStatus(options.addAllSelector, enabled);
+				},
+				detectAndSetAddAllOperationStatusTimerId,
+				detectAndSetAddAllOperationStatus = function() {
+					if (detectAndSetAddAllOperationStatusTimerId) {
+						root.clearTimeout(detectAndSetAddAllOperationStatusTimerId);
+					}
+					detectAndSetAddAllOperationStatusTimerId = root.setTimeout(function() {
+						setAddAllOperationStatus(sourceSelectionList.getEnabledNodes().length);
+					}, 200);
+				},
+				setRemoveOperationStatus = function(enabled) {
+					setOperationButtonStatus(options.removeSelector, enabled);
+				},
+				setRemoveAllOperationStatus = function(enabled) {
+					setOperationButtonStatus(options.removeAllSelector, enabled);
+				},
+
+				sourceChangedHandler = function() {
+					var desNodes = desSelectionList.getAllNodes();
+					$.each(desNodes, function(index, desNode) {
+						var matchedSrcNodes = getMatchedItemsByItem(sourceSelectionList, desNode, desSelectionList);
+						if (matchedSrcNodes.length) {
+							desSelectionList.enableNode(desNode);
+							$.each(matchedSrcNodes, function(index, matchedSrcNode) {
+								sourceSelectionList.disableNode(matchedSrcNode);
+							});
+						}
+					});
+					detectAndSetAddOperationStatus();
+					detectAndSetAddAllOperationStatus();
+				},
+				sourceItemSelectedHandler = function() {
+					setAddOperationStatus(true);
+					setRemoveOperationStatus(false);
+					desSelectionList.container.jstree("deselect_all");
+				},
+				descItemSelectedHandler = function() {
+					setAddOperationStatus(false);
+					setRemoveOperationStatus(true);
+					sourceSelectionList.container.jstree("deselect_all");
+				},
+				setSourceData = function(data) {
+					var dnd = false,
+						detectIsFlatSource = function() {
+							var result = true;
+
+							$.each(data, function(index, item) {
+								if (item.children && item.children.length) {
+									result = false;
+									return false;
+								}
+							});
+
+							return result;
+						},
+						isFlatSource = detectIsFlatSource(),
+						theme = isFlatSource ? FLAT_SELECTION_THEME : TREE_SELECTION_THEME,
+
+						bindSourceTreeEvents = function() {
+							sourceSelectionList.container.on("loaded.jstree", sourceChangedHandler);
+							sourceSelectionList.container.on("select_node.jstree", sourceItemSelectedHandler);
+						},
+						setSourceTree = function() {
+							sourceSelectionList = ui.selectionList(options.sourceSelector, {
+								"source": data,
+								"dnd": dnd,
+								"theme": {
+									"theme": theme
+								},
+								"expandAll": options.expandAll
+							});
+						};
+
+					setSourceTree();
+					bindSourceTreeEvents();
+				},
+
+				setMatchedItemsByIdStatus = function(selectionList, id, status) {
+					var matchedItems = getMatchedItemsById(selectionList, id);
+					$.each(matchedItems, function(index, item) {
+						selectionList[status ? "enableNode" : "disableNode"](item);
+					});
+				},
+				addDataToDestinationInternal = function(data) {
+					desSelectionList.container.jstree("create", -1, "last", data, $.noop, true);
+				},
+				addSourceItemToDestination = function(node) {
+					if (!sourceSelectionList.isNodeEnabled(node)) {
+						return;
+					}
+
+					if (options.callbacks && options.callbacks.onAdding && (options.callbacks.onAdding(node, instance) === false)) {
+						return;
+					}
+
+					var title = sourceSelectionList.container.jstree('get_text', node),
+						id = itemIdentifier(node, sourceSelectionList),
+						metadata = $(node).data(),
+						newNodeData = {
+							"data": {
+								"title": title
+							},
+							"metadata": metadata
+						};
+					addDataToDestinationInternal(newNodeData);
+					setMatchedItemsByIdStatus(sourceSelectionList, id, false);
+				},
+				addSelectedSourceItemsToDestination = function() {
+					var selectedNodes = getSelectedSourceItems();
+					$.each(selectedNodes, function(index, node) {
+						addSourceItemToDestination(node);
+					});
+					setAddOperationStatus(false);
+					setRemoveAllOperationStatus(true);
+					detectAndSetAddAllOperationStatus();
+				},
+				addAllSourceItemsToDestination = function() {
+					var allSourceNodes = sourceSelectionList.getAllNodes();
+					$.each(allSourceNodes, function(index, node) {
+						addSourceItemToDestination(node);
+					});
+					setAddOperationStatus(false);
+					setAddAllOperationStatus(false);
+					setRemoveAllOperationStatus(true);
+				},
+				addDataToSelectedItemDirectly = function(data, id) {
+					id = (id === undefined || id === null) ? defaultDataIdentifier(data) : id;
+					var selectedValues = getSelectedValues(),
+						itemAlreadyContained = ($.inArray(id, selectedValues) !== -1),
+						doAdd = function() {
+							addDataToDestinationInternal(data);
+							setMatchedItemsByIdStatus(sourceSelectionList, id, false);
+						};
+
+					if (!itemAlreadyContained) {
+						doAdd();
+						detectAndSetAddAllOperationStatus();
+						setRemoveAllOperationStatus(true);
+					}
+				},
+
+				removeDesItem = function(node) {
+					if (options.callbacks && options.callbacks.onRemoving && (options.callbacks.onRemoving(node, instance) === false)) {
+						return;
+					}
+
+					desSelectionList.container.jstree('delete_node', node);
+					var matchedNodesInSource = getMatchedItemsByItem(sourceSelectionList, node, desSelectionList);
+					$.each(matchedNodesInSource, function(index, matchedNodeInSource) {
+						sourceSelectionList.enableNode(matchedNodeInSource);
+					});
+				},
+				removeSelectedDesItems = function() {
+					var selectedNodes = getSelectedDesItems();
+					$.each(selectedNodes, function(index, node) {
+						removeDesItem(node);
+					});
+					setRemoveOperationStatus(desSelectionList.getSelectedNodes().length);
+					setRemoveAllOperationStatus(desSelectionList.getAllNodes().length);
+				},
+				removeAllSelectedDesItems = function() {
+					var allSourceNodes = desSelectionList.getAllNodes();
+					$.each(allSourceNodes, function(index, node) {
+						removeDesItem(node);
+					});
+					setRemoveOperationStatus(false);
+					setRemoveAllOperationStatus(false);
+				},
+				removeSelectedByValue = function(id) {
+					var matchedItems = getMatchedItemsById(desSelectionList, id);
+					$.each(matchedItems, function(index, node) {
+						removeDesItem(node);
+					});
+				},
+
+				bindOperations = function() {
+					var bindClickEvent = function(selector, func) {
+						if (selector) {
+							$(selector).on('click', func);
+						}
+					};
+
+					bindClickEvent(options.addSelector, addSelectedSourceItemsToDestination);
+					bindClickEvent(options.addAllSelector, addAllSourceItemsToDestination);
+					bindClickEvent(options.removeSelector, removeSelectedDesItems);
+					bindClickEvent(options.removeAllSelector, removeAllSelectedDesItems);
+				},
+
+				getSourceItemsCount = function() {
+					return sourceSelectionList.countNodes();
+				},
+			    
+                getSourceItems = function () {
+                    return sourceSelectionList;
+                },
+
+				initOperationButtons = function() {
+					if (!options.autoDetectOperationStatus) {
+						return;
+					}
+
+					setAddOperationStatus(false);
+					setRemoveOperationStatus(false);
+					setAddAllOperationStatus(false);
+					setRemoveAllOperationStatus(false);
+				},
+
+				init = function() {
+					initSourceSelectionList();
+					initDesSelectionList();
+					bindOperations();
+					initOperationButtons();
+				};
+
+			init();
+			instance = {
+				"setSourceData": setSourceData,
+				"addDataToSelectedItemDirectly": addDataToSelectedItemDirectly,
+				"getSelectedValues": getSelectedValues,
+				"getSourceItemsCount": getSourceItemsCount,
+				"getSourceItems": getSourceItems,
+				"getSelectedTexts": getSelectedTexts,
+				"getSelectedSourceTypes": getSelectedSourceTypes,
+				"removeSelectedByValue": removeSelectedByValue,
+				"clearSelection": removeAllSelectedDesItems
+			};
+
+			return instance;
+		};
+
+		ui["selectionListsComponent"] = selectionListsComponent;
+	}());
+
+	ui.histogram || (function() {
+		var Raphael = root.Raphael,
+			histogram = function(options) {
+				options = $.extend(true, {
+					selector: "", // jquery selector
+					width: 400,
+					height: 80,
+					partitions: [ /* int or json object that has "count" property */ ],
+					zeroLevel: 0,
+					colors: {
+						"background": "#f0f7ff",
+						"activeBar": "#0354d9",
+						"inactiveBar": "#ccc",
+						"handle": "#ddd"
+					},
+					paddingTop: 2,
+					callbacks: {
+						"onChanging": $.noop, // function(activePartitions) {}
+						"onChanged": $.noop // function(activePartitions) {}
+					},
+					countExtractor: undefined, // function(p) { return p.count }
+					activeInterval: undefined // [0, max - 1]
+				}, options || {});
+				if (!options.partitions) {
+					options.partitions = [];
+				}
+				if (root.Object.prototype.toString.call(options.activeInterval) !== "[object Array]" ||
+					options.activeInterval.length !== 2) {
+					options.activeInterval = [0, options.partitions.length - 1];
+				}
+				options.activeInterval[0] = root.Math.max(0, options.activeInterval[0]);
+				options.activeInterval[1] = root.Math.min(options.partitions.length - 1, options.activeInterval[1]);
+
+				var paper,
+
+					maxCount = 0,
+					minCount = Number.MIN_VALUE,
+					bars = [ /*{ id: 0, count: 0, active: true, bar: 'ui element', partition: 'related partition in options' }*/ ],
+
+					minHandle,
+					maxHandle,
+
+					HANDLE_TYPE_MIN = 'MIN',
+					HANDLE_TYPE_MAX = 'MAX',
+					HANDLE_STROKE_WIDTH = 2,
+					HANDLE_WIDTH = 7,
+					HANDLE_HEIGHT = 14,
+					HANDLE_OUTER_WIDTH = HANDLE_WIDTH + HANDLE_STROKE_WIDTH * 2,
+					HANDLE_OUTER_HEIGHT = HANDLE_HEIGHT + HANDLE_STROKE_WIDTH * 2,
+					HANDLE_STROKE_COLOR = "#666666",
+					HANDLE_FILL_COLOR = "#fff",
+					HANDLE_LINE_WIDTH = 1,
+
+					getActiveInterval = function() {
+						var i, l = bars.length,
+							bar,
+							getLowerEndpoint = function() {
+								for (i = 0; i < l; i++) {
+									bar = bars[i];
+									if (bar.active) {
+										break;
+									}
+								}
+								return i;
+							},
+							getUpperEndpoint = function() {
+								for (i = l - 1; i > -1; i--) {
+									bar = bars[i];
+									if (bar.active) {
+										break;
+									}
+								}
+
+								return root.Math.max(0, i);
+							},
+							r = [getLowerEndpoint(), getUpperEndpoint()];
+
+						return r;
+					},
+					getActivePartitions = function() {
+						var activeInterval = getActiveInterval(),
+							activePartitions = options.partitions.slice(activeInterval[0], activeInterval[1] + 1);
+						return activePartitions;
+					},
+
+					initPaper = function() {
+						var container = $(options.selector);
+						if (!container.length) {
+							throw "Dom node not found.";
+						}
+
+						paper = Raphael(container[0], options.width, options.height);
+						paper.canvas.style.backgroundColor = options.colors.background;
+						paper.canvas.style.left = 0;
+						paper.canvas.style.top = 0;
+					},
+					initBarsData = function() {
+						var counts = [],
+							countExtractor = function(p) {
+								var num = options.countExtractor ? options.countExtractor(p) : parseFloat(p, 10);
+								if (root.isNaN(num)) {
+									num = parseFloat(p.count, 10);
+								}
+
+								return num;
+							},
+							count;
+
+						$.each(options.partitions, function(i, partition) {
+							count = countExtractor(partition);
+							counts.push(count);
+							bars.push({
+								"id": i,
+								"count": count,
+								"active": (i >= options.activeInterval[0] && i <= options.activeInterval[1]),
+								"partition": partition
+							});
+						});
+
+						maxCount = root.Math.max.apply(this, counts);
+						minCount = root.Math.min.apply(this, counts);
+					},
+					initBarsUIElements = function() {
+						var BARS_WIDTH_TO_SPACE_WIDTH_RATIO = 2,
+							barsCount = bars.length,
+							spacesCount = (function() {
+								var c = barsCount - 1;
+								return c > 0 ? c : 0;
+							}()),
+							barsTotalWidth = options.width - HANDLE_OUTER_WIDTH,
+							spaceWidth = (function() {
+								var r = barsCount > 0 ? (barsTotalWidth / (spacesCount + barsCount * BARS_WIDTH_TO_SPACE_WIDTH_RATIO)) : barsTotalWidth;
+								return r;
+							}()),
+							barWidth = spaceWidth * BARS_WIDTH_TO_SPACE_WIDTH_RATIO,
+							barStepWidth = spaceWidth + barWidth,
+							maxHeight = options.height - options.paddingTop,
+							minMaxDiff = (function() {
+								var r = maxCount - minCount;
+								return r === 0 ? 1 : r;
+							}()),
+							maxZeroLevelDiff = maxCount - options.zeroLevel,
+							minZeroLevelDiff = minCount - options.zeroLevel,
+							minCountBarHeight = 0,
+							maxCountBarHeight = maxHeight,
+							doMinMaxBarHeightCalculation = function() {
+								if (maxZeroLevelDiff > 0) {
+									if (minZeroLevelDiff > 0) {
+										minCountBarHeight = maxHeight * minZeroLevelDiff / maxZeroLevelDiff;
+									} else {
+										minCountBarHeight = maxHeight * minZeroLevelDiff / (minMaxDiff - minZeroLevelDiff);
+									}
+								} else {
+									maxCountBarHeight = 0;
+								}
+							},
+							width, height, x, y, zeroDiff, minDiff;
+
+						doMinMaxBarHeightCalculation();
+
+						$.each(bars, function(i, bar) {
+							height = (function() {
+								var h = minCountBarHeight + (maxCountBarHeight - minCountBarHeight) * (bar.count - minCount) / minMaxDiff;
+								return root.Math.max(0, h);
+							}());
+							y = options.height - height + options.paddingTop;
+							x = HANDLE_OUTER_WIDTH / 2 + i * barStepWidth;
+							width = barWidth;
+
+							var rect = paper.rect(x, y, width, height);
+							rect.attr('stroke-width', 0);
+							bar["rect"] = rect;
+						});
+					},
+					drawBar = function(bar) {
+						bar.rect.attr('fill', bar.active ? options.colors.activeBar : options.colors.inactiveBar);
+					},
+					drawBars = function() {
+						$.each(bars, function(i, bar) {
+							drawBar(bar);
+						});
+					},
+					getBarLeft = function(bar) {
+						return bar.rect.attr('x');
+					},
+					getBarRight = function(bar) {
+						return getBarLeft(bar) + bar.rect.attr('width');
+					},
+					setBarActiveStatus = function(bar, status) {
+						if (bar.active === status) {
+							return;
+						}
+						bar.active = status;
+						drawBar(bar);
+					},
+					initBars = function() {
+						initBarsData();
+						initBarsUIElements();
+						drawBars();
+					},
+
+					initHandleUIElements = function() {
+						var desc = '',
+							createHandle = function(handleType) {
+								var rectX = 0,
+									rectY = (options.height - HANDLE_HEIGHT) / 2,
+									rect = (function() {
+										var r = paper.rect(rectX, rectY, HANDLE_WIDTH, HANDLE_HEIGHT);
+										r.node.style.cursor = "ew-resize";
+										return r;
+									}()),
+
+									lineX = rectX + (HANDLE_WIDTH - 1) / 2,
+									lineY = 0,
+									line = paper.rect(lineX, lineY, 1, options.height),
+
+									getCenterPosition = function() {
+										return line.attr('x') + HANDLE_LINE_WIDTH / 2;
+									},
+									getLeftPosition = function() {
+										return rect.attr('x') - HANDLE_STROKE_WIDTH;
+									},
+									setCenterPosition = function(x) {
+										line.attr('x', x - HANDLE_LINE_WIDTH / 2);
+										rect.attr('x', x - HANDLE_WIDTH / 2);
+									},
+									setLeftPosition = function(x) {
+										line.attr('x', x + HANDLE_OUTER_WIDTH / 2 - HANDLE_LINE_WIDTH / 2);
+										rect.attr('x', x + HANDLE_STROKE_WIDTH);
+									},
+
+									handle = {
+										"rect": rect,
+										"line": line,
+										"getCenterPosition": getCenterPosition,
+										"getLeftPosition": getLeftPosition,
+										"setCenterPosition": setCenterPosition,
+										"setLeftPosition": setLeftPosition,
+										"type": handleType
+									};
+
+								return handle;
+							};
+
+						minHandle = createHandle(HANDLE_TYPE_MIN);
+						maxHandle = createHandle(HANDLE_TYPE_MAX);
+						minHandle.setCenterPosition(bars.length > 0 ? getBarLeft(bars[options.activeInterval[0]]) : HANDLE_OUTER_WIDTH / 2);
+						maxHandle.setCenterPosition(bars.length > 0 ? getBarRight(bars[options.activeInterval[1]]) : (options.width - HANDLE_OUTER_WIDTH / 2));
+					},
+					drawHandles = function() {
+						var desc = '',
+							drawHandle = function(handle) {
+								handle.rect.attr("stroke-width", HANDLE_STROKE_WIDTH);
+								handle.rect.attr("stroke", HANDLE_STROKE_COLOR);
+								handle.rect.attr("fill", HANDLE_FILL_COLOR);
+								handle.line.attr("stroke-width", 0);
+								handle.line.attr("fill", HANDLE_STROKE_COLOR);
+							};
+						drawHandle(minHandle);
+						drawHandle(maxHandle);
+					},
+					initHandleBehaviors = function() {
+						var prevMinBarIndex = 0,
+							prevMaxBarIndex = bars.length - 1,
+							getNearestBar = function(x, leftToRight) {
+								var target, prevBar, barLeft, barRight, i, l,
+									checkIsNearestBarFromLeftToRight = function(bar) {
+										barLeft = bar.rect.attr('x');
+										barRight = barLeft + bar.rect.attr('width');
+										if (x >= barLeft) {
+											if (x <= barRight) {
+												target = bar;
+												return false;
+											}
+										} else {
+											target = bar;
+											return false;
+										}
+
+										target = bar;
+										prevBar = bar;
+									},
+									checkIsNearestBarFromRightToLeft = function(bar) {
+										barLeft = bar.rect.attr('x');
+										barRight = barLeft + bar.rect.attr('width');
+										if (x <= barRight) {
+											if (x >= barLeft) {
+												target = bar;
+												return false;
+											}
+										} else {
+											target = bar;
+											return false;
+										}
+
+										target = bar;
+										prevBar = bar;
+									};
+
+								if (leftToRight) {
+									for (i = 0, l = bars.length; i < l; i++) {
+										if (checkIsNearestBarFromLeftToRight(bars[i]) === false) {
+											break;
+										}
+									}
+								} else {
+									for (i = bars.length - 1; i > -1; i--) {
+										if (checkIsNearestBarFromRightToLeft(bars[i]) === false) {
+											break;
+										}
+									}
+								}
+
+								return target;
+							},
+							initDragFor = function(handle, rangeFunc) {
+								var originalX,
+									prevX,
+									range,
+									isMinHandle = (handle.type === HANDLE_TYPE_MIN),
+									prevNearestBar = (function() {
+										if (!bars.length) {
+											return undefined;
+										}
+										return isMinHandle ? bars[0] : bars[bars.length - 1];
+									}()),
+									curNearestBar,
+									refreshAffectedBarsStatus = function() {
+										if (!bars.length) {
+											return;
+										}
+
+										var cx = handle.getCenterPosition();
+										curNearestBar = getNearestBar(cx, isMinHandle);
+
+										var i,
+											l = root.Math.min(prevNearestBar.id, curNearestBar.id),
+											r = root.Math.max(prevNearestBar.id, curNearestBar.id),
+											isIncreasingSelection = (function() {
+												if (isMinHandle) {
+													return prevNearestBar.id >= curNearestBar.id;
+												} else {
+													return prevNearestBar.id <= curNearestBar.id;
+												}
+											}());
+
+										if (isMinHandle) {
+											for (i = l; i < r; i++) {
+												setBarActiveStatus(bars[i], isIncreasingSelection);
+											}
+										} else {
+											for (i = r; i > l; i--) {
+												setBarActiveStatus(bars[i], isIncreasingSelection);
+											}
+										}
+
+										if (l !== r && options.callbacks && $.isFunction(options.callbacks.onChanging)) {
+											options.callbacks.onChanging(getActivePartitions());
+										}
+
+										prevNearestBar = curNearestBar;
+									},
+									onmove = function(dx, dy) {
+										var newX = originalX + dx;
+										newX = root.Math.max(newX, range.from);
+										newX = root.Math.min(newX, range.to);
+
+										handle.setLeftPosition(newX);
+
+										if (newX === prevX) {
+											return;
+										}
+
+										refreshAffectedBarsStatus();
+
+										prevX = newX;
+									},
+									onstart = function() {
+										originalX = this.attr('x');
+										prevX = handle.getLeftPosition();
+										range = rangeFunc();
+									},
+									onend = function() {
+										if (!bars.length) {
+											return;
+										}
+
+										var cx = isMinHandle ? getBarLeft(curNearestBar) : getBarRight(curNearestBar);
+										handle.setCenterPosition(cx);
+
+										if (options.callbacks && $.isFunction(options.callbacks.onChanged)) {
+											options.callbacks.onChanged(getActivePartitions());
+										}
+									};
+
+								handle.rect.drag(onmove, onstart, onend);
+							};
+
+						initDragFor(minHandle, function() {
+							return {
+								"from": 0,
+								"to": maxHandle.getLeftPosition()
+							};
+						});
+
+						initDragFor(maxHandle, function() {
+							return {
+								"from": minHandle.getLeftPosition(),
+								"to": options.width - HANDLE_OUTER_WIDTH
+							};
+						});
+					},
+					initHandles = function() {
+						initHandleUIElements();
+						drawHandles();
+						initHandleBehaviors();
+					},
+
+					init = function() {
+						initPaper();
+						initBars();
+						initHandles();
+					};
+
+				init();
+
+				return {
+					"getActiveInterval": getActiveInterval,
+					"getActivePartitions": getActivePartitions
+				};
+			};
+
+		ui["histogram"] = histogram;
+	}());
+
+	if(root.define) {
+		root.define(function() {
+			return ui;
+		});
+	} else {
+		$.extend(true, {
+			mdc: {
+				ui: ui
+			}
+		});
+	}
+
+}(this, jQuery));

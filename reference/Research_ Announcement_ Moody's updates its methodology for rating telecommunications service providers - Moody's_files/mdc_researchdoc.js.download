@@ -1,0 +1,885 @@
+$(document).ready(
+    function () {
+        // var isChrome = (navigator.userAgent.indexOf("Chrome") != -1) ? true : false;
+
+        // if (isChrome) {
+        //     $('#mdcDocSharingButtons').removeClass("mdcDocSharingButtons");
+        //    $('#mdcDocSharingButtons').addClass("mdcDocSharingButtonsChrome");
+        // }
+
+        // Set Default Timeout to 60 seconds.
+        Sys.Net.WebRequestManager.set_defaultTimeout(60000);
+        $('#mdcViewAll>span>img').mdcSwitchImage();
+        $('#mdcViewAll>span>img').mdcToggle(
+			function () { $('#mdcRelatedResearchContent tr.mdcCollapse').toggleClass('mdcHide'); $('#mdcViewAll>span>img').toggleClass('mdcCollapse'); if ($('#mdcViewAll>span>img').hasClass('mdcCollapse')) { $(this).attr('src', '/_layouts/Mdc/Images/expand.gif'); } else { $(this).attr('src', '/_layouts/Mdc/Images/collapse.gif'); } },
+			function () { $('#mdcRelatedResearchContent tr.mdcCollapse').toggleClass('mdcHide'); $('#mdcViewAll>span>img').toggleClass('mdcCollapse'); if (!$('#mdcViewAll>span>img').hasClass('mdcCollapse')) { $(this).attr('src', '/_layouts/Mdc/Images/collapse.gif'); } else { $(this).attr('src', '/_layouts/Mdc/Images/expand.gif'); } }
+		);
+        //        $('#mdcRelatedResearchContent table').mdcTableColor();
+        $('#mdcRelatedResearchContent table tr>td>span>a').click(function () {$.mdc.pushPreviousPageCookie(); });
+        $('#mdcPrint img').mdcSwitchImage();
+        
+        $("#wcoZoomImageContainer").click(function () {
+            $(this).addClass('mdcHide');
+        });
+
+        $('#PrintDocument').click(function () {
+            var docContent;
+            TrackPrintAction();
+            if ($('#NoResearchDocData').hasClass('mdcHide'))
+                if (window.frames["mdcIFrame"])
+                    docContent = window.frames["mdcIFrame"].document.getElementById('mdcRDBottomContent').innerHTML;
+                else
+                    docContent = document.getElementById('mdcRDBottomContent').innerHTML;
+            else
+                docContent = $('#NoResearchDocData').html();
+            var topLogo = $('#ResearchDocTopLogoImg').html();
+            var bottomLogo = $('#mdcBottomLogo').html();
+            var pageType = $('#mdcRDHeader span.mdcPageType').html();
+            var pageTitle = $('#mdcRDHeader span.mdcPageTitle').html();
+            var bodyHeader = $('#mdcRDBottom div.mdcBodyHeader').html();
+            var copyRight = $('#mdcRDCopyright').html();
+
+            var win = window.open('about:blank', '', 'height=1px,width=1px,top=0,left=0,toolbar=no,menubar=no,status=no,resizable=no');
+            pDoc = "<html><head><style>" + ".pageHeader{margin-top:10px;font-weight:bold;line-height:18px;font-family:Arial;font-size:14px;margin:0;padding:0;}" + ".pageTitle{color:#1257c6;}"
+				         + ".bar{text-align:center;margin-top:10px;margin-bottom:10px;border:solid 2px #0028A1;}" + ".bodyHeader{font-family:Arial;font-weight:bold;font-size:11px;color:#666666;margin-bottom:10px;}" + ".docContent *{font-family:Arial;}"
+				         + ".docContent h4{color:black;font-family:Verdana,Arial;font-size:8pt;font-weight:bold;}" + ".docContent p {color:black;font-family:Arial;font-size:9pt;}" + ".mdcClear{float:none;clear:both;height:0;font-size:0;line-height:0;}"
+				         + ".docContent b{color:black;font-family:Arial;font-size:9pt;font-weight:bold;}" + ".bottomLogo{text-align:right;}" + ".copyRight *{font-family:Arial;font-size:11px;}"
+				         + "</style></head><body>"
+				         + "<div>"
+	  	            + "<div>" + topLogo + "</div>"
+	  	            + "<div class='pageHeader' style=''>"
+                            + "<span>" + pageType + "</span>"
+	  	            + "<span class='pageTitle'>" + pageTitle + "</span></div>"
+	  	            + "<div class='bar'></div>"
+	  	            + "<div class='bodyHeader'>" + bodyHeader + "</div>"
+	  	            + "<div class='docContent'>" + docContent + "<div class='mdcClear'></div></div>"
+	  	            + "<div class='bottomLogo'>" + bottomLogo + "</div>"
+	  	            + "<div class='copyRight'>" + copyRight + "</div>"
+  	             + "</div>"
+  	             + "</body></html>";
+            win.document.write(pDoc);
+            win.document.close();
+            var is_chrome = Boolean(win.chrome);
+            if (is_chrome) {
+                win.onload = function() { // wait until all resources loaded 
+                    win.focus(); // necessary for IE >= 10
+                    win.print();  // change window to mywindow
+                    win.close();// change window to mywindow
+                };
+            }
+            else {
+                win.focus(); // necessary for IE >= 10
+                win.print();
+                win.close();
+            }
+        });
+
+        $('#rtrsReportPrint').click(function () {
+            TrackPrintAction();
+	        var printTitle = 'RTRSReport';
+            var printElement = $('div#mdcResearchDoc');
+	        var win = window.open('about:blank', '', 'height=1px,width=1px,top=0,left=0,toolbar=no,menubar=no,status=no,resizable=no');
+	        var pDocType = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Trasitional//EN" "http://www.w3.org/TR/html4/loose.dtd">';
+	        var pHead = '<head><title>' + printTitle + '</title>';
+	        var pScript = '<script type="text/javascript">window.onload = function() {window.print();window.close();}</script>';
+	        var pAdStyle = '<style>#mdcContainer{background:none; width:990px;} #rtrsReportToolBar, #mdcTools, #mdcDocSharingButtons{display:none;}</style>';
+	        $(document).find('link')
+		        .filter(function(){
+			        return $(this).attr('rel').toLowerCase() == 'stylesheet';
+		            })
+		        .each(function(){
+			        pHead += '<link type="text/css" rel="stylesheet" href="' + $(this).attr('href') + '" >';
+		            });
+	        pHead += pAdStyle;
+	        pHead += pScript;
+	        pHead += '</head>';
+	        var pBody = '<body><div id="mdcContainer"><div id="' + printElement.attr("id") + '">' + printElement.html() + '</div></div></body>';
+	        var pDocument = pDocType + '<html>' + pHead + pBody + '</html>';
+	        win.document.write(pDocument);
+	        win.document.close();
+        });
+
+        $('#EmailDocument').click(function() {
+            TrackEmailButtonClickAction();
+        });
+
+        SetEmailPopupPositions();
+        if ($("#hidShowInput").val() == "True") {
+            SwitchPopupLayer("input");
+            if ($("#hidShowError").val() == "True") {
+                ShowErrorOnInput($("#hidErrorMsg").val());
+            }
+        }
+        else if ($("#hidShowThankYou").val() == "True") {
+            SwitchPopupLayer("thankyou");
+        }
+        else if ($("#hidShowCannotShare").val() == "True") {
+            SwitchPopupLayer("cannotshare");
+        }
+
+        $.mdc.PermissonOption = {
+            DocsSelector: '.mdcResearchSearchResultItem .mdcDocumentId',
+            DataReplace: function (aDocPermissionArray, theUserEntitlementType) {
+                var trIndex = -1;
+
+                $(".mdcResearchSearchResultItem").each(function () {
+                    trIndex = trIndex + 1;
+
+                    var imgLock = $(this).find("img");
+
+                    if (aDocPermissionArray[trIndex] == 1) {
+                        imgLock.remove();
+                    } else {
+                        imgLock.attr("class", "");
+                    }
+
+                });
+            }
+        };
+        var permission = $.extend(true, {}, $.mdc.Re, $.mdc.PermissonOption);
+        permission.QueryForDocPermission();
+    }
+);
+
+function SetIFrameHeight(iframe) {
+    /*[US209986] [MIT req][MDC] Core-117 SDDE Tool UI output on MDC   2017/10/16 */
+    /*Adjust table css before caculate height*/
+    /*Only for research/Moodys-Structured-Disclosure--SFG_DIS*/
+    if(window.location.pathname === "/research/Moodys-Structured-Disclosure--SFG_DIS") {
+        $('#Iframe1').contents().find('table').addClass('tableAutoWrap');
+        var cssObject = {
+            "word-wrap":"break-word",
+            "text-align":"left"
+        };
+        $('#Iframe1').contents().find('table').addClass('tableAutoWrap').css({"table-layout": "fixed","width":744+"px"})
+        $('#Iframe1').contents().find('.tableAutoWrap th:first-child').css({"width":11+"%"});
+        $('#Iframe1').contents().find('.tableAutoWrap th:nth-child(2)').css({"width":13+"%"});
+        $('#Iframe1').contents().find('.tableAutoWrap th:nth-child(3)').css({"width":20+"%"});    
+        $('#Iframe1').contents().find('.tableAutoWrap th').css(cssObject);
+        $('#Iframe1').contents().find('.tableAutoWrap td').css(cssObject);
+    }
+    var bHeight = iframe.contentWindow.document.body.scrollHeight;
+    var dHeight = iframe.contentWindow.document.documentElement.scrollHeight;
+    var height = Math.max(bHeight, dHeight);
+    iframe.height = height + SetWcoAuthorContact();
+}
+
+function SetWcoAuthorContact() {
+    var articleIframe = window.frames["mdcIFrame"];
+    if (articleIframe) {
+        var aContact = articleIframe.document.getElementById('wcoAuthorContact');
+        if (aContact) {
+            var aContent = articleIframe.document.getElementById('wcoMainContent');
+            if (aContent) {
+                aContent.style.paddingLeft = "0px";
+            }
+            
+            articleIframe.document.getElementById('wcoArticleContent').style.color = "Black";
+            var aTitle = '<div style="font-size:10pt;font-family:Arial;font-weight:bold;border-bottom: 2px solid #CCCCCC;width:200px;padding-bottom:5px">Author Contact</div>';
+            aContact.style.cssFloat = "left";
+            aContact.style.styleFloat = "left";
+            aContact.innerHTML = aTitle + aContact.innerHTML;
+            return aContact.offsetHeight;
+        }
+    }
+    return 0;
+}
+
+function TrackPrintAction() {
+    var hiddenDocId = $('#mdcHiddenDocId');
+    if (hiddenDocId != '' || hiddenDocId != null) {
+        var docId = hiddenDocId.val();
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6');
+        dcsMultiTrack({
+            'DCS.dcsuri': 'Research/HTML/Print/{0}'.format(docId),
+            'DCS.dcsvid': $('meta[name=\'WT.dcsvid\']').attr('content'),
+            'WT.pn_sku': '',
+            'WT.z_referringsource': 'Print~{0}'.format(docId),
+            'WT.dl': '29'
+        });
+        mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.dl');
+    }
+}
+
+function _getEmailRecipients() {
+    var txtEmail = document.getElementById(EmailControlName).value,
+        recipients = txtEmail.split(';'),
+        result = [],
+        i = 0,
+        l = recipients.length,
+        recipient;
+
+    for (; i < l; i++) {
+        recipient = $.trim(recipients[i]);
+        if (recipient !== '') {
+            result.push(recipient);
+        }
+    }
+
+    return result;
+}
+
+function TrackEmailButtonClickAction() {
+    var hiddenDocId = $('#mdcHiddenDocId');
+    if (hiddenDocId != '' || hiddenDocId != null) {
+        var docId = hiddenDocId.val();
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6');
+        dcsMultiTrack({
+            'DCS.dcsuri': 'Research/HTML/Email/{0}'.format(docId),
+            'WT.ti': 'Email Research - {0}'.format(docId),
+            'DCS.dcsvid': $('meta[name=\'WT.dcsvid\']').attr('content'),
+            'WT.pn_sku': '',
+            'WT.z_referringsource': 'EmailIcon~{0}'.format(docId),
+            'WT.dl': '29',
+            'WT.z_previouspage': docId,
+            'WT.pn_id': docId
+        });
+        mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.dl');
+    }
+}
+
+function TrackEmailSendAction() {
+    var emailRecipients = _getEmailRecipients(),
+        hiddenDocId = $('#mdcHiddenDocId'),
+        isPagePostback = (document.referrer === location.href);
+    if (hiddenDocId != '' || hiddenDocId != null) {
+        var docId = hiddenDocId.val();
+
+        var referringsource = '';
+        if (!isPagePostback) {
+            referringsource = 'EmailSend~{0}~{1}~{2}'.format(docId, emailRecipients.length, emailRecipients.join('~'));
+        } else {
+            referringsource = 'EmailSendAfterRetype~{0}~{1}~{2}'.format(docId, emailRecipients.length, emailRecipients.join('~'));
+        }
+        
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6');
+        
+        dcsMultiTrack({
+            'DCS.dcsuri': 'Research/HTML/EmailSend/{0}'.format(docId),
+            'WT.ti': 'Email Research - {0}'.format(docId),
+            'DCS.dcsvid': $('meta[name=\'WT.dcsvid\']').attr('content'),
+            'WT.pn_sku': '',
+            'WT.z_referringsource': referringsource,
+            'WT.dl': '99',
+            'WT.z_previouspage': docId,
+            'WT.pn_id': docId
+        });
+        mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.dl');
+    }
+}
+
+function TrackEmailThankYouAction() {
+    var emailRecipients = _getEmailRecipients();
+    var hiddenDocId = $('#mdcHiddenDocId');
+    if (hiddenDocId != '' || hiddenDocId != null) {
+        var docId = hiddenDocId.val();
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6');
+        dcsMultiTrack({
+            'DCS.dcsuri': 'Research/HTML/EmailSendConfirmed/{0}'.format(docId),
+            'WT.ti': 'Email Research - {0}'.format(docId),
+            'DCS.dcsvid': $('meta[name=\'WT.dcsvid\']').attr('content'),
+            'WT.pn_sku': '',
+            'WT.z_referringsource': 'EmailSendConfirmed~{0}~{1}~{2}'.format(docId, emailRecipients.length, emailRecipients.join('~')),
+            'WT.dl': '99',
+            'WT.z_previouspage': docId,
+            'WT.pn_id': docId
+        });
+        mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.dl');
+    }
+}
+
+function SetEmailPopupPositions() {
+    CentreEmailPopupOnForm('input', $('#mdcInputLayer'));
+    CentreEmailPopupOnForm('cannotshare', $('#mdcCannotShareLayer'));
+    CentreEmailPopupOnForm('thankyou', $('#mdcThankYouLayer'));
+    CloseAllLayers();
+}
+
+function CentreEmailPopupOnForm(layer, e) {
+
+    var formLeft = GetControlLeft(layer, e);
+    var parentTop = $('#mdcCenterContent').offset().top;
+    var formHeight = e.outerHeight();
+    var formWidth = e.outerWidth();
+    if (layer == 'input') {
+        formHeight = 290;
+        formWidth = 494;
+    }
+    var layerTop = ($(window).height() - formHeight) / 2 + $(window).scrollTop();
+    var layerLeft = ($(window).width() - formWidth) / 2 + $(window).scrollLeft() - formLeft;
+
+    e.css("position", "absolute");
+    e.css("left", layerLeft + "px");
+
+    if (layerTop < parentTop) {
+        //Prevent layer from disappearing into the site banner
+        e.css("top", parentTop + "px");
+    }
+    else {
+        e.css("top", layerTop + "px");
+    }
+}
+
+function SwitchPopupLayer(layer) {
+
+    CloseAllLayers();
+
+    var aWidth;
+    var aHeight;
+
+    switch (layer) {
+        case "input":
+            aWidth = $('#mdcInputLayer').css("width");
+            aHeight = $('#mdcInputLayer').css("height");
+            break;
+        case "cannotshare":
+            aWidth = $('#mdcCannotShareLayer').css("width");
+            aHeight = $('#mdcCannotShareLayer').css("height");
+            break;
+        case "thankyou":
+            aWidth = $('#mdcThankYouLayer').css("width");
+            aHeight = $('#mdcThankYouLayer').css("height");
+            break;
+        default:
+            break;
+    }
+    $('#mdcPlaceHolder').css("width", aWidth);
+    $('#mdcPlaceHolder').css("height", aHeight);
+    CentreEmailPopupOnForm(layer, $('#mdcPlaceHolder'));
+    var aTop = $('#mdcPlaceHolder').css("top");
+    var aLeft = $('#mdcPlaceHolder').css("left");
+
+    switch (layer) {
+        case "input":
+            $('#mdcInputLayer').removeClass('mdcHide');
+            $('#mdcInputLayer').css("top", aTop);
+            $('#mdcInputLayer').css("left", aLeft);
+            break;
+        case "cannotshare":
+            $('#mdcCannotShareLayer').removeClass('mdcHide');
+            $('#mdcCannotShareLayer').css("top", aTop);
+            $('#mdcCannotShareLayer').css("left", aLeft);
+            break;
+        case "thankyou":
+            $('#mdcThankYouLayer').removeClass('mdcHide');
+            $('#mdcThankYouLayer').css("top", aTop);
+            $('#mdcThankYouLayer').css("left", aLeft);
+            break;
+        default:
+            break;
+    }
+    $('#mdcPlaceHolder').css("width", "0px");
+    $('#mdcPlaceHolder').css("height", "0px");
+    $('#mdcPlaceHolder').css("top", "auto");
+    $('#mdcPlaceHolder').css("left", "auto");
+}
+
+function SetControlLeft(layer, left) {
+    var aLeftControl;
+
+    switch (layer) {
+        case "input":
+            aLeftControl = $('#hidInputLeft');
+            break;
+        case "cannotshare":
+            aLeftControl = $('#hidCannotShareLeft');
+            break;
+        case "thankyou":
+            aLeftControl = $('#hidThankYouLeft');
+            break;
+        default:
+            break;
+    }
+
+    aLeftControl.val(left);
+}
+
+function GetControlLeft(layer, e) {
+    var aLeftControl;
+    var aLeft;
+
+    switch (layer) {
+        case "input":
+            aLeftControl = $('#hidInputLeft');
+            break;
+        case "cannotshare":
+            aLeftControl = $('#hidCannotShareLeft');
+            break;
+        case "thankyou":
+            aLeftControl = $('#hidThankYouLeft');
+            break;
+        default:
+            break;
+    }
+    aLeft = aLeftControl.val();
+
+    if (aLeft <= 0) {
+        aLeft = e.offset().left;
+        SetControlLeft(layer, aLeft);
+    }
+
+    return aLeft;
+}
+
+function CloseAllLayers() {
+    $('#mdcInputLayer').addClass('mdcHide');
+    $('#mdcCannotShareLayer').addClass('mdcHide');
+    $('#mdcThankYouLayer').addClass('mdcHide');
+    $('#mdcInputErrorDiv').addClass('mdcHide');
+    $('#hidThankYou').val('0');
+}
+
+function checkBlankField(textField) {
+    if (textField != null) {
+		var aTextValue = textField.value.replace(/^\s*|\s*$/, "");   //trim
+        if (aTextValue == '' || aTextValue == 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+function ShowError(divInputError, txtValidationMessage, errorMessage) {
+    var imgLineSpacer = document.getElementById('mdcLineSpacer');
+    divInputError.className = "mdcEmailError";
+    txtValidationMessage.innerHTML = errorMessage;
+    imgLineSpacer.style.height = "10px";
+}
+
+function ShowErrorOnInput(errorMessage) {
+    var divInputError = document.getElementById('mdcInputErrorDiv');
+    var txtValidationMessage = document.getElementById('txtValidationMessage');
+    ShowError(divInputError, txtValidationMessage, errorMessage);
+}
+
+function ValidateEmailFormInput() {
+    var txtEmail = document.getElementById(EmailControlName);
+    var txtValidationMessage = document.getElementById('txtValidationMessage');
+    var divInputError = document.getElementById('mdcInputErrorDiv');
+    var txtIsLimitExceeded = document.getElementById('hidIsLimitExceeded');
+
+    var emailList;
+    var emailError = "";
+    var delimiter = ";";
+
+    txtValidationMessage.innerHTML = '';
+    divInputError.className = "mdcEmailError mdcHide";
+
+    //validate submission limit
+    if (txtIsLimitExceeded.value == 'True') {
+        SwitchPopupLayer("cannotshare");
+        return false;
+    }
+
+    //validate email address is entered
+    if (!checkBlankField(txtEmail)) {
+        ShowError(divInputError, txtValidationMessage, 'Email is required');
+        return false;
+    }
+
+    //validate comma is not used as delimiter
+    if (txtEmail.value.indexOf(",") > 0) {
+        ShowError(divInputError, txtValidationMessage, 'Please use ; to seperate user email addresses');
+        return false;
+    }
+
+    //validate number of email addresses	
+    var fullEmail = txtEmail.value;
+    fullEmail = fullEmail.replace(/(\r\n|\r|\n)/g, "");  //remove newlines	
+
+    var emailList = fullEmail.replace(/;$/, "").split(delimiter);
+    if (emailList.length > 20) {
+        ShowError(divInputError, txtValidationMessage, 'Please do not enter more than 20 email addresses.');
+        return false;
+    }
+
+    //validate email addresses format
+    for (i = 0; i < emailList.length; i++) {
+        emailList[i] = emailList[i].replace(/^\s*|\s*$/, "");   //trim
+        if (!$.mdc.IsEmail(emailList[i])) {
+            emailError += emailList[i] + ' ' + delimiter;
+        }
+    }
+
+    if (emailError != "") {
+        emailError = emailError.replace(/;$/, "");
+        emailError = "We were unable to deliver to the following email address(es). Please check the email address(es) below for accuracy: " + emailError;
+        ShowError(divInputError, txtValidationMessage, emailError);
+        return false;
+    }
+
+    var txtCaptcha = $(".captchaText")[0];
+    if (!checkBlankField(txtCaptcha)) {
+        ShowError(divInputError, txtValidationMessage, 'Please type in the characters you see below');
+        return false;
+    }
+
+    return true;
+}
+
+function ClearResearchEmailFields() {
+    var txtEmail = document.getElementById(EmailControlName);
+    var txtValidationMessage = document.getElementById('txtValidationMessage');
+
+    txtEmail.value = "";
+    txtValidationMessage.innerHTML = "";
+    var txtCaptcha = $(".captchaText")[0];
+    txtCaptcha.value = "";    
+}
+
+function OpenEmailLayer() {
+    var txtIsLimitExceeded = document.getElementById('hidIsLimitExceeded');
+    if (txtIsLimitExceeded.value == 'True')
+        SwitchPopupLayer('cannotshare');
+    else
+        SwitchPopupLayer('input');
+
+}
+
+(function($, root, undefined) {
+    "use strict";
+
+    var prepareMeta = function(name, content) {
+            var metaElement = $('head>meta[name="' + name + '"]');
+
+            if(metaElement.length === 0) {
+                metaElement = $("<meta>").attr({
+                    "name": name
+                });
+                metaElement.appendTo("head");
+            }
+
+            metaElement.attr({
+                "content": content
+            });
+        },
+        prepareMetas = function(metas) {
+            for(var i = 0, j = metas.length; i < j; i += 2) {
+                prepareMeta(metas[i], metas[i + 1]);
+            }
+        },
+        doTrackWith = function(trackParams) {
+            if(root.dcsMultiTrack) {
+                prepareMetas(trackParams);
+                root.dcsMultiTrack.apply(this, trackParams);
+            }
+        },
+        userId, docId;
+
+    //init
+    $(function() {
+        docId = $("#mdcHiddenDocId").val();
+        userId = $("#mdcHiddenUserId").val();
+        $('head>meta[name="WT.cg_sec4"]').remove();
+    });
+
+    //research rating
+    $(function() {
+        $("#reserachRating").on('commentSubmitted', function(e, gigyaCommentSubmittedEvent) {
+            if(!gigyaCommentSubmittedEvent || !gigyaCommentSubmittedEvent.ratings) {
+                return;
+            }
+
+            if(!userId) {
+                return;
+            }
+
+            var ratings = 5000 + gigyaCommentSubmittedEvent.ratings['_overall'],
+                dcsvid = userId,
+                dsuri = location.pathname + location.search,
+                se = location.href,
+                ti = 'Link: RateThisResearch',
+                dl = 99,
+                z_referringsource = 'RateThisResearch~' + docId + '~' + ratings,
+                mc_id = 'RateThisResearch_' + ratings,
+                cg_n = 'RateThisResearch',
+                cg_s = docId,
+                cg_sec3 = ratings,
+                trackParams = [];
+
+            trackParams.push('DCS.dcsvid');
+            trackParams.push(dcsvid);
+            trackParams.push('DSC.dsuri');
+            trackParams.push(dsuri);
+            trackParams.push('WT.se');
+            trackParams.push(se);
+            trackParams.push('WT.ti');
+            trackParams.push(ti);
+            trackParams.push('WT.dl');
+            trackParams.push(dl);
+            trackParams.push('WT.z_referringsource');
+            trackParams.push(z_referringsource);
+            trackParams.push('WT.mc_id');
+            trackParams.push(mc_id);
+            trackParams.push('WT.cg_n');
+            trackParams.push(cg_n);
+            trackParams.push('WT.cg_s');
+            trackParams.push(cg_s);
+            trackParams.push('WT.cg_sec3');
+            trackParams.push(cg_sec3);
+
+            doTrackWith(trackParams);
+        });
+    });
+
+    // update profile to view research doc
+    $(function() {
+        var updateProfileViewDocContainerId = "#update-profile-view-doc",
+            updateProfileViewDocContainer = $(updateProfileViewDocContainerId),
+            docId = updateProfileViewDocContainer.data('doc-id'),
+            profileContainer = $("#update-profile"),
+            initBizType = function() {
+                var bizTypeJobFunctionMapString = $("#bizTypeJobFunctionsMap").text(),
+                    bizTypeJobFunctionMap = $.parseJSON(bizTypeJobFunctionMapString);
+                profileContainer.find(".businessTypes").on("change", function() {
+                    var bizTypeId = $(this).val(),
+                        jobFunctions = bizTypeJobFunctionMap[bizTypeId],
+                        jobFunctionEle = profileContainer.find(".jobFunctions"),
+                        optionsHtml = '<option></option>',
+                        OPTION_HTML_TEMPLATE = '<option value="$id">$name</option>';
+                    if(jobFunctions) {
+                        for(var i = 0, l = jobFunctions.length; i < l; i++) {
+                            var jobFunction = jobFunctions[i],
+                                optionHtml = OPTION_HTML_TEMPLATE.replace("$id", jobFunction.Id).replace("$name", jobFunction.Name);
+                            optionsHtml += optionHtml;
+                        };
+                    }
+                    jobFunctionEle.html(optionsHtml);
+                });
+            },
+
+            OKAY_CLASS_NAME = 'ok',
+            ERROR_CLASS_NAME = 'err',
+            initValidation = function() {
+                var REQUIRED_FIELDS_FILTER = '.company, .businessTypes, .countries, .interestedSectors, .interestedRegion',
+                    NOT_REQUIRED_FIELDS_FILTER = '.jobFunctions, .jobTitles',
+                    REQUIRED_MSG_DATA_KEY = "required",
+                    getMsgLabelFor = function(ele) {
+                        return ele.parent().find(">label");
+                    },
+                    markField = function(ele, isOkay, msg) {
+                        var infoLabel = getMsgLabelFor(ele);
+                        infoLabel.attr("for", ele.attr("id"));
+
+                        if(isOkay) {
+                            infoLabel.text(msg ? msg : 'ok').removeClass(ERROR_CLASS_NAME).addClass(OKAY_CLASS_NAME);
+                        } else {
+                            infoLabel.text(msg ? msg : '').removeClass(OKAY_CLASS_NAME).addClass(ERROR_CLASS_NAME);
+                        }
+                    };
+
+                profileContainer.on("blur", REQUIRED_FIELDS_FILTER, function() {
+                    var ele = $(this),
+                        valid = ($.trim(ele.val()) != ''),
+                        requiredMsg = ele.data(REQUIRED_MSG_DATA_KEY),
+                        msg = valid ? "" : requiredMsg;
+                    markField(ele, valid, msg);
+                });
+                profileContainer.on("blur", NOT_REQUIRED_FIELDS_FILTER, function() {
+                    markField($(this), true, '');
+                });
+                profileContainer.on("blur", ".name", function() {
+                    var firstNameEle = profileContainer.find(".firstName"),
+                        lastNameEle = profileContainer.find(".lastName"),
+                        firstNameValid = $.trim(firstNameEle.val()) != '',
+                        lastNameValid = $.trim(lastNameEle.val()) != '',
+                        valid = firstNameValid && lastNameValid;
+                    if(valid) {
+                        markField(firstNameEle, true, '');
+                    } else if(!firstNameValid) {
+                        markField(firstNameEle, false, firstNameEle.data(REQUIRED_MSG_DATA_KEY));
+                    } else {
+                        markField(lastNameEle, false, lastNameEle.data(REQUIRED_MSG_DATA_KEY));
+                    }
+
+                });
+            },
+            popupView, initPopupView = function() {
+                updateProfileViewDocContainer.removeAttr("mdcHide");
+                popupView = $.mdc.ui.popup(updateProfileViewDocContainerId, {
+                    modal: true,
+                    close: false,
+                    width: 640,
+                    className: 'mdc-popup-square update-profile-view-doc',
+                    keepDomPosition: false
+                });
+            },
+            initSubmit = function() {
+                var allValid = true,
+                    validateAll = function() {
+                        profileContainer.find("input,select").trigger("blur");
+                        allValid = true;
+                        profileContainer.find("label.msg").each(function() {
+                            if(!$(this).hasClass(OKAY_CLASS_NAME)) {
+                                allValid = false;
+                            }
+                            return allValid;
+                        });
+                    },
+                    doSubmit = function() {
+                        var firstName = profileContainer.find(".firstName").val(),
+                            lastName = profileContainer.find(".lastName").val(),
+                            company = profileContainer.find(".company").val(),
+                            bizTypeId = profileContainer.find(".businessTypes").val(),
+                            jobFunctionId = profileContainer.find(".jobFunctions").val(),
+                            jobTitleId = profileContainer.find(".jobTitles").val(),
+                            country = profileContainer.find(".countries").val(),
+                            interestedSectorId = profileContainer.find(".interestedSectors").val(),
+                            interestedRegionId = profileContainer.find(".interestedRegion").val(),
+                            registerAlertsBasedOnPreferenceVal = profileContainer.find(".preference>input:checked").val(),
+                            registerAlertsBasedOnPreference = registerAlertsBasedOnPreferenceVal === "1",
+
+                            data = {
+                                "DocId": docId,
+                                "FirstName": firstName,
+                                "LastName": lastName,
+                                "Company": company,
+                                "BusinessTypeId": bizTypeId,
+                                "JobFunctionId": jobFunctionId,
+                                "JobTitleId": jobTitleId,
+                                "CountryName": country,
+                                "InterestedSectorId": interestedSectorId,
+                                "InterestedRegionId": interestedRegionId,
+                                "ReceiveAlertsBasedOnPreference": registerAlertsBasedOnPreference
+                            };
+
+                        $.ajax({
+                            "url": "/Account/Profile/UpdatePartialProfile",
+                            "type": "POST",
+                            "data": data
+                        }).always(function(result) {
+                            popupView.hide();
+                        });
+                    },
+                    trackWebTrends = function() {
+                        var location = root.location,
+                            hostName = location.hostname,
+                            dcsuri = location.pathname,
+                            ti = "Link: Progressive Registration",
+                            dl = 99,
+                            mc_id = "UpdateProfile",
+                            ac = mc_id,
+                            trackParams = [];
+
+                        trackParams.push('DCS.dcssip');
+                        trackParams.push(hostName);
+                        trackParams.push('DCS.dcsvid');
+                        trackParams.push(userId);
+                        trackParams.push('DCS.dcsuri');
+                        trackParams.push(dcsuri);
+                        trackParams.push('WT.ti');
+                        trackParams.push(ti);
+                        trackParams.push('WT.dl');
+                        trackParams.push(dl);
+                        trackParams.push('WT.mc_id');
+                        trackParams.push(mc_id);
+                        trackParams.push('WT.ac');
+                        trackParams.push(ac);
+
+                        doTrackWith(trackParams);
+                    };
+
+                updateProfileViewDocContainer.find("a.btn-view-doc").on("click", function() {
+                    validateAll();
+                    if(!allValid) {
+                        return;
+                    }
+                    doSubmit();
+                    trackWebTrends();
+                });
+            },
+            init = function() {
+                if(updateProfileViewDocContainer.length === 0) {
+                    return;
+                }
+
+                initPopupView();
+                initBizType();
+                initValidation();
+                initSubmit();
+            };
+        init();
+    });
+    
+    //research anonymous tou
+    $(function () {
+        var researchTouContainerId = "#research-tou",
+		researchTouContainer = $(researchTouContainerId),
+		
+	   init = function() {
+			if(researchTouContainer.length === 0) {
+				return;
+			}
+			
+			//$("div").load(function(){
+			   //$("#wcoArticleCenter").addClass("blurredContent");			  
+		   //});
+
+		    //$(".mdcDocRelatedOrg").addClass("blurredContent");
+			var h = $(document.body).height() + 50;
+		    $(".mdc-research-overlay").appendTo(document.body);
+		    $(".mdc-research-overlay").css("height", h);		    
+		    researchTouContainer.appendTo(document.body);
+		    $("#mdcCenterContent .mdc-research-overlay").remove();
+		    $("#mdcCenterContent #research-tou").remove();
+		    $("body form").addClass("mdcBlur");
+		    researchTouContainer.focus();
+		};
+		
+		$("#wcoArticleCenter").live('ready', function(){
+			//$(this).addClass("blurredContent");
+			//$(".mdcNoIframe #mdcRDBottomContent P").css("color", "#a9a9a9");
+			var h = $(document.body).height() + 50;
+			$(".mdc-research-overlay").css("height", h);
+		});
+		
+		$("#research-tou .activeAgreeBtn").live("click", function(){			
+			researchTouContainer.remove();
+			$('.mdc-research-overlay').remove();
+			$("body form").removeClass("mdcBlur");
+			//$("#wcoArticleCenter").removeClass("blurredContent");
+			//$(".mdcDocRelatedOrg").removeClass("blurredContent");
+			//$(".mdcNoIframe #mdcRDBottomContent P").css("color", "black");
+		});
+		
+		$("#research-tou .activeAgreeBtn").live("hover",  function (ev) {
+            if (ev.type == 'mouseenter') {
+                $(this).css("background", "linear-gradient(#FFFFFF, #E2E2E2)");
+            }
+
+            if (ev.type == 'mouseleave') {
+                $(this).css("background", "linear-gradient(#FFFFFF, #F1F1F1)");
+            }
+        });	
+		
+		$("#research-tou-content #loginBtn").on("click", function () {
+		    var currentUrl = window.location.href;
+		    window.location = "/login.aspx?ReturnUrl=" + currentUrl;
+        });
+		$("#research-tou-content #loginBtn").hover(function () {
+             $(this).css("background", "linear-gradient(#ABABAB, #7F7F7F)");
+			}, function(){
+				$(this).css("background", "linear-gradient(#00568F, #002B56)");
+        });
+		$("#research-tou-content #registerBtn").on("click", function () {
+            window.location = "/registerinfo.aspx";
+        });
+		$("#research-tou-content #registerBtn").hover(function () {
+             $(this).css("background", "linear-gradient(#FFFFFF, #E2E2E2)");
+			}, function(){
+				$(this).css("background", "linear-gradient(#FFFFFF, #F1F1F1)");
+        });
+		$("#research-tou  #mdcResearchTermsOfUse").scroll(function(){
+			var aScrollHeight = $(this)[0].scrollHeight;
+			var aScrollTop = $(this)[0].scrollTop;
+			var aDivHeight = $(this)[0].clientHeight;
+			if (aScrollTop + aDivHeight >= aScrollHeight) {
+			    $("#research-tou #agreeBtn").removeClass("disableAgreeBtn");
+			    $("#research-tou #agreeBtn").addClass("activeAgreeBtn");
+			}
+		});
+	  init();
+    });
+}(jQuery, window));

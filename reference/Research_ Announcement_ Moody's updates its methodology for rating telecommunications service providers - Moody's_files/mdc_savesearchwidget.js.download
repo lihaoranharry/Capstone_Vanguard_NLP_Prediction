@@ -1,0 +1,240 @@
+﻿$(document).ready(
+	function() {
+	    $(document).click(
+            function(event) {
+                var $target = $(event.target);
+                var elementId = $target.attr("id");
+                if (elementId != 'mdcSavedSearchText' && elementId != 'mdcSaveSearchPopUpControl' && $target.parents('#mdcSaveSearchPopUpControl').length == 0 && elementId != 'mdcSaveSearchPopUpBodyTab' && elementId != 'mdcSavedSearchArrow') {
+                    $('#mdcSaveSearchPopUpControl').addClass('mdcHide');
+                }
+            });
+	    $('#mdcSavedSearchText').bind('click', SearchResultsPopUp);
+	    $("#mdcSaveSearchPopUpControl").on("click", "#mdcSaveSearchPopUpBody li a", WebtrendsMdcSavedSearchText);
+	    $('#mdcSaveSearchPopUpBodyTab').bind('click', SearchResultsPopUp);
+	    ShowScrollBarInQuickSearch();
+	    ShowScrollBarInQuickSearchEdit();
+	    ShowScrollBarInPopUp();
+	    });
+
+function SearchResultsPopUp() {
+    var resultsPopUp = $('#mdcSaveSearchPopUpControl');
+    var saveSearchText = $('#mdcSavedSearchText');
+    if (resultsPopUp.hasClass('mdcHide') ){
+        if (saveSearchText != null) {
+            var aleft = saveSearchText.position().left - 4 + "px";
+            var atop = saveSearchText.position().top - 7 + "px";
+            var sWidth = saveSearchText.width() + 46 + "px";
+            resultsPopUp.css({ left: aleft, top: atop, width:sWidth });
+        }
+        resultsPopUp.removeClass('mdcHide');
+    } else {
+        resultsPopUp.addClass('mdcHide');
+    }
+}
+
+function WebtrendsMdcSavedSearchText() {
+    
+    var tracks = {
+        "WT.ti": "Link: Your Saved Searches",
+        "WT.z_referringsource": "GH~YourSavedSearches",
+        "WT.pn_id": "Global Header",
+        "WT.dl": 99,
+        "WT.cg_n": "",
+        "WT.cg_s": "",
+        "DCS.dcsuri": "GH/YourSavedSearches",
+        "WT.z_previouspage":location.href
+    };
+
+    dcsMultiTrack(tracks);
+    mdcCleanUpProps('WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s,WT.z_previouspage');
+}
+
+function SwitchSearchResultsToEdit() {
+    document.getElementById('mdcSaveSearchEdit').className = 'mdcHide';
+    $('#mdcSaveSearch>#mdcSaveSearchBody').toggleClass('mdcHide');
+    document.getElementById('mdcSaveSearchBodyEditState').className = 'mdcSaveSearchState';
+}
+
+function CancelUpdateSearchResults() {
+    $('#mdcSaveSearch>#mdcACTabs>#mdcSaveSearchEdit').toggleClass('mdcHide').addClass('mdcSaveSearchState');
+    $('#mdcSaveSearch>#mdcSaveSearchBody').toggleClass('mdcHide');
+    $('#mdcSaveSearch>#mdcSaveSearchBodyEditState').toggleClass('mdcHide');
+    RevertSaveNameChange();
+    $('#mdcWarningMessage').attr('class', 'mdcHide');
+    document.getElementById('ctl00_ctl00_MdcWebPartManager_SaveSearchItemWebPart_ctl00_mdcHfiledOverwriteFlag').value = "";
+}
+
+function RevertSaveNameChange() {
+    var aResultItems = $('#mdcSaveSearch>#mdcSaveSearchBody>div>ul>li>a');
+    var aTable = $('#mdcSaveSearch>#mdcSaveSearchBodyEditState>#mdcSaveSearchTable>tbody');
+    var aInputBoxStr = document.getElementById('ctl00_ctl00_MdcWebPartManager_SaveSearchItemWebPart_ctl00_mdcHfiledInputBoxStr').value;
+    aTable.empty();
+    aTable.append("<tr><th class='mdcSaveSearchItemName'></th><th class='mdcSaveSearchItemDelete'></th></tr>");
+    if (aResultItems != null) {
+        $.each(aResultItems, function(i, val) {
+            var aId = aResultItems[i].id;
+            var aInputId = "SaveSearchTitle" + aId;
+            var aDelImgId = "DeleteImage" + aId;
+            var aItemName = aResultItems[i].innerHTML;
+            aTable.append("<tr class=\"mdcSaveSearchItemRow\"><td><input id=\"" + aInputId + "\" type=\"text\" class=\"mdcSaveSearchInput\" value=\"" + aItemName + "\" /></td><td style=\"vertical-align:middle;\"><img id=\"" + aDelImgId + "\" onclick=\"this.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode);ShowScrollBarInQuickSearchEdit();\" src=\"/_layouts/Mdc/Images/CloseButtonIcon-Gray.gif\" onmouseout=\"this.src=\'/_layouts/Mdc/Images/CloseButtonIcon-Gray.gif\'\" onmouseover=\"this.src=\'/_layouts/Mdc/Images/CloseButtonIcon-Blue.gif\'\" alt=\"\" class=\"DeleteSaveSearchButton\"></td><td></td></tr>");
+        });
+    }    
+}
+
+function UpdateSearchResults(theUrl, theInputString) {
+    var aEmptyItems = GetEmptyItems();
+    var aDuplicateItems = GetDuplicateItems();
+
+    if (aEmptyItems.length > 0) {
+        $('#mdcSaveSearchMsg')[0].innerHTML = "Please enter a name for your saved search.";
+        $('#mdcWarningMessage').removeClass('mdcHide');
+        MakeInvalidItemsHighlight(aEmptyItems);
+    }
+    else if (aDuplicateItems.length > 0) {
+        $('#mdcSaveSearchMsg')[0].innerHTML = "You already have a saved search with this name. Saving will overwrite it.";
+        $('#mdcWarningMessage').removeClass('mdcHide');
+        MakeInvalidItemsHighlight(aDuplicateItems);
+        if (document.getElementById('ctl00_ctl00_MdcWebPartManager_SaveSearchItemWebPart_ctl00_mdcHfiledOverwriteFlag').value == "") {
+            document.getElementById('ctl00_ctl00_MdcWebPartManager_SaveSearchItemWebPart_ctl00_mdcHfiledOverwriteFlag').value = "1";
+        }
+        else {
+            $('#mdcWarningMessage').addClass('mdcHide');
+            ResloveDuplicateItems(aDuplicateItems);
+            document.getElementById('ctl00_ctl00_MdcWebPartManager_SaveSearchItemWebPart_ctl00_mdcHfiledOverwriteFlag').value = "";
+            $.mdc.submitPostFormArray(theUrl, theInputString);
+        }
+    }
+    else {
+        $('#mdcWarningMessage').addClass('mdcHide');
+        $.mdc.submitPostFormArray(theUrl, theInputString);
+    }
+}
+
+function GetEmptyItems() {
+    var aInputItems = $('#mdcSaveSearch>#mdcSaveSearchBodyEditState>#mdcSaveSearchTable>tbody>tr>td>input');
+    var aEmptyItems = new Array();
+    if (aInputItems != null) {
+        $.each(aInputItems, function(i, val) {
+        var aValue = aInputItems[i].value.replace(/[ ]/g, "");
+            var aId = aInputItems[i].id;
+            $('#' + aId).removeClass();
+            $('#' + aId).addClass("mdcSaveSearchInput");
+            if (aValue == "") {
+                aEmptyItems.push(aId);
+            }
+        });
+    }
+    return aEmptyItems;
+}
+
+
+
+function GetDuplicateItems() {
+    var aInputItems = $('#mdcSaveSearch>#mdcSaveSearchBodyEditState>#mdcSaveSearchTable>tbody>tr>td>input');
+    var aDuplicateItems = new Array();
+    if (aInputItems != null) {
+        for (var i = 0; i < aInputItems.length; i++) {
+            var aValue = aInputItems[i].value;
+            var aId = aInputItems[i].id;
+            $('#' + aId).removeClass();
+            $('#' + aId).addClass("mdcSaveSearchInput");
+            if (aValue != "") {
+                var flag = 0;
+                for (var j = i + 1; j < aInputItems.length; j++) {
+                    var aSubValue = aInputItems[j].value;
+                    var aSubId = aInputItems[j].id;
+                    if (aValue == aSubValue) {
+                        if (flag == 0) {
+                            aDuplicateItems.push(aId);
+                        }
+                        aDuplicateItems.push(aSubId);
+                        flag = flag + 1;
+                    }
+                }
+            }
+        }
+    }
+    return aDuplicateItems;
+}
+
+function ResloveDuplicateItems(theDuplicateItems) {
+    if (theDuplicateItems != null) {
+        var count = 0;
+
+        for (var i = 0; i < theDuplicateItems.length; i++) {
+            if (CompareWithOldItem(theDuplicateItems[i], $('#' + theDuplicateItems[i])[0].value) == false) {
+                if (count > 0) {
+                    //Exclude the first one,others need to be overwrited 
+                    $('#' + theDuplicateItems[i])[0].parentNode.parentNode.parentNode.removeChild($('#' + theDuplicateItems[i])[0].parentNode.parentNode);
+                }
+                count = count + 1;
+            }
+            else {
+                //old items need to be overwrited
+                $('#' + theDuplicateItems[i])[0].parentNode.parentNode.parentNode.removeChild($('#' + theDuplicateItems[i])[0].parentNode.parentNode);
+            }
+        }
+    }
+}
+
+function CompareWithOldItem(theItemId, theItemValue) {
+    var aId = theItemId.replace("SaveSearchTitle", "");
+    aId = aId.replace(/(^\s*)|(\s*$)/g, ""); //remove spaces
+    var aOldItem = $('#mdcSaveSearch>#mdcSaveSearchBody>div>ul>li>#' + aId);
+    if (aOldItem != null && theItemValue != "") {
+        if (aOldItem[0].innerHTML == theItemValue) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function MakeInvalidItemsHighlight(theInvalidItems) {
+    if (theInvalidItems != null) {
+        for (var i = 0; i < theInvalidItems.length; i++) {
+            $('#' + theInvalidItems[i]).removeClass();
+            $('#' + theInvalidItems[i]).addClass("mdcSaveSearchInputHighlight");
+        }
+    }
+}
+
+function ShowScrollBarInQuickSearch() {
+    var aResultItems = $('#mdcSaveSearch>#mdcSaveSearchBody>div>ul>li>a');
+    if (aResultItems != null) {
+        if (aResultItems.length > 10) {
+            $('#mdcSaveSearch>#mdcSaveSearchBody').css('overflow-y', 'auto');
+            $('#mdcSaveSearch>#mdcSaveSearchBody').css('height', 185);
+        }
+        else {
+            $('#mdcSaveSearch>#mdcSaveSearchBody').css('overflow-y', 'hidden');
+            $('#mdcSaveSearch>#mdcSaveSearchBody').css('height', 'auto');
+        }
+    }  
+}
+function ShowScrollBarInQuickSearchEdit() {
+    var aInputItems = $('#mdcSaveSearch>#mdcSaveSearchBodyEditState>#mdcSaveSearchTable>tbody>tr>td>input');
+    if (aInputItems != null) {
+        if (aInputItems.length > 10) {
+            $('#mdcSaveSearch>#mdcSaveSearchBodyEditState').css('overflow-y', 'auto');
+            $('#mdcSaveSearch>#mdcSaveSearchBodyEditState').css('height', 292);
+        }
+        else {
+            $('#mdcSaveSearch>#mdcSaveSearchBodyEditState').css('overflow-y', 'hidden');
+            $('#mdcSaveSearch>#mdcSaveSearchBodyEditState').css('height', 'auto');
+        }
+    }
+}
+function ShowScrollBarInPopUp() {
+    var aResultItemsInHomePage = $('#mdcSaveSearchPopUpControl>#mdcSaveSearchPopUpBody>div>ul>li>a');
+    if (aResultItemsInHomePage != null) {
+        if (aResultItemsInHomePage.length > 10) {
+            $('#mdcSaveSearchPopUpControl>#mdcSaveSearchPopUpBody').css('overflow-y', 'auto');
+            $('#mdcSaveSearchPopUpControl>#mdcSaveSearchPopUpBody').css('height', 185);
+        }
+        else {
+            $('#mdcSaveSearchPopUpControl>#mdcSaveSearchPopUpBody').css('overflow-y', 'hidden');
+            $('#mdcSaveSearchPopUpControl>#mdcSaveSearchPopUpBody').css('height', 'auto');
+        }
+    }
+}

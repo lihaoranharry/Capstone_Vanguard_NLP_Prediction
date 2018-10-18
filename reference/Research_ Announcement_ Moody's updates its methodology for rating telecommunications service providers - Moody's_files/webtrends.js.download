@@ -1,0 +1,1369 @@
+// WebTrends SmartSource Data Collector Tag
+// Version: 8.6.2     
+// Tag Builder Version: 3.0
+// Created: 12/10/2009 6:34:38 PM
+
+function WebTrends(dcsId, onSiteDoms) {
+    var that = this;
+    // begin: user modifiable
+    this.dcsid = dcsId;
+    this.domain = "statse.webtrendslive.com";
+    this.timezone = -5;
+    this.fpcdom = "";
+    this.onsitedoms = onSiteDoms;
+    this.downloadtypes = "xls,doc,pdf,txt,csv,zip,xlsx,docx,ppt,pptx,docx,xlsx";
+    this.navigationtag = "div,table";
+    this.trackevents = true;
+    this.trimoffsiteparams = true;
+    this.enabled = true;
+    this.i18n = false;
+    this.fpc = "WT_FPC";
+    this.paidsearchparams = "gclid";
+    // end: user modifiable
+    this.DCS = {};
+    this.WT = {};
+    this.DCSext = {};
+    this.images = [];
+    this.index = 0;
+    this.exre = (function () { return (window.RegExp ? new RegExp("dcs(uri)|(ref)|(aut)|(met)|(sta)|(sip)|(pro)|(byt)|(dat)|(p3p)|(cfg)|(redirect)|(cip)", "i") : ""); })();
+    this.re = (function () { return (window.RegExp ? (that.i18n ? { "%25": /\%/g } : { "%09": /\t/g, "%20": / /g, "%23": /\#/g, "%26": /\&/g, "%2B": /\+/g, "%3F": /\?/g, "%5C": /\\/g, "%22": /\"/g, "%7F": /\x7F/g, "%A0": /\xA0/g }) : ""); })();
+}
+
+(function () {
+    if (!String.prototype.contains) {
+        String.prototype.contains = function(searchString, position) {
+            return this.indexOf(searchString, position ? position : 0) >= 0;
+        };
+    }
+
+    var dateToStr = function (date, fmt) { //author: meizz 
+        var o = {
+            "M+": date.getUTCMonth() + 1,
+            "d+": date.getUTCDate(),
+            "h+": date.getUTCHours(),
+            "m+": date.getUTCMinutes(),
+            "s+": date.getUTCSeconds(),
+            "q+": Math.floor((date.getUTCMonth() + 3) / 3),
+            "f+": date.getUTCMilliseconds()
+        };
+        if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (date.getUTCFullYear() + "").substr(4 - RegExp.$1.length));
+        for (var k in o)
+            if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : ((RegExp.$1.length == 2 ? "00" : "000") + o[k]).substr(("" + o[k]).length));
+        return fmt;
+    };
+
+    WebTrends.prototype.dcsGetId = function () {
+        if (this.enabled && (document.cookie.indexOf(this.fpc + "=") == -1) && (document.cookie.indexOf("WTLOPTOUT=") == -1)) {
+            document.write("<scr" + "ipt type='text/javascript' src='" + "http" + (window.location.protocol.indexOf('https:') == 0 ? 's' : '') + "://" + this.domain + "/" + this.dcsid + "/wtid.js" + "'><\/scr" + "ipt>");
+        }
+    };
+    WebTrends.prototype.dcsGetIdSync = function (jQ, ignore) {
+        if (this.enabled && (document.cookie.indexOf(this.fpc + "=") == -1) && (document.cookie.indexOf("WTLOPTOUT=") == -1)) {
+            var that = this;
+            jQ.getScript("http" + (window.location.protocol.indexOf('https:') == 0 ? 's' : '') + "://" + this.domain + "/" + this.dcsid + "/wtid.js", function () { that.dcsCollect(); });
+        } else {
+            this.dcsCollect(ignore);
+        }
+    };
+    
+    WebTrends.prototype.dcsCollect = function (ignore) {
+        if (this.enabled) {
+            this.dcsVar();
+            this.dcsMeta();
+            this.dcsAdv();
+            if (!ignore) {
+               this.dcsTag();
+            }
+        }
+    };
+
+    WebTrends.prototype.dcsGetCookie = function (name) {
+        var cookies = document.cookie.split("; ");
+        var cmatch = [];
+        var idx = 0;
+        var i = 0;
+        var namelen = name.length;
+        var clen = cookies.length;
+        for (i = 0; i < clen; i++) {
+            var c = cookies[i];
+            if ((c.substring(0, namelen + 1)) == (name + "=")) {
+                cmatch[idx++] = c;
+            }
+        }
+        var cmatchCount = cmatch.length;
+        if (cmatchCount > 0) {
+            idx = 0;
+            if ((cmatchCount > 1) && (name == this.fpc)) {
+                var dLatest = new Date(0);
+                for (i = 0; i < cmatchCount; i++) {
+                    var lv = parseInt(this.dcsGetCrumb(cmatch[i], "lv"));
+                    var dLst = new Date(lv);
+                    if (dLst > dLatest) {
+                        dLatest.setTime(dLst.getTime());
+                        idx = i;
+                    }
+                }
+            }
+            return unescape(cmatch[idx].substring(namelen + 1));
+        } else {
+            return null;
+        }
+    };
+    WebTrends.prototype.dcsGetCrumb = function (cval, crumb, sep) {
+        var aCookie = cval.split(sep || ":");
+        for (var i = 0; i < aCookie.length; i++) {
+            var aCrumb = aCookie[i].split("=");
+            if (crumb == aCrumb[0]) {
+                return aCrumb[1];
+            }
+        }
+        return null;
+    };
+    WebTrends.prototype.dcsGetIdCrumb = function (cval, crumb) {
+        var id = cval.substring(0, cval.indexOf(":lv="));
+        var aCrumb = id.split("=");
+        for (var i = 0; i < aCrumb.length; i++) {
+            if (crumb == aCrumb[0]) {
+                return aCrumb[1];
+            }
+        }
+        return null;
+    };
+    WebTrends.prototype.dcsIsFpcSet = function (name, id, lv, ss) {
+        var c = this.dcsGetCookie(name);
+        if (c) {
+            return ((id == this.dcsGetIdCrumb(c, "id")) && (lv == this.dcsGetCrumb(c, "lv")) && (ss == this.dcsGetCrumb(c, "ss"))) ? 0 : 3;
+        }
+        return 2;
+    };
+    WebTrends.prototype.dcsFPC = function () {
+        if (document.cookie.indexOf("WTLOPTOUT=") != -1) {
+            return;
+        }
+        var WT = this.WT;
+        var name = this.fpc;
+        var dCur = new Date();
+        var adj = (dCur.getTimezoneOffset() * 60000) + (this.timezone * 3600000);
+        dCur.setTime(dCur.getTime() + adj);
+        var dExp = new Date(dCur.getTime() + 315360000000);
+        var dSes = new Date(dCur.getTime());
+        WT.co_f = WT.vtid = WT.vtvs = WT.vt_f = WT.vt_f_a = WT.vt_f_s = WT.vt_f_d = WT.vt_f_tlh = WT.vt_f_tlv = "";
+        if (document.cookie.indexOf(name + "=") == -1) {
+            if ((typeof (gWtId) != "undefined") && (gWtId != "")) {
+                WT.co_f = gWtId;
+            } else if ((typeof (gTempWtId) != "undefined") && (gTempWtId != "")) {
+                WT.co_f = gTempWtId;
+                WT.vt_f = "1";
+            } else {
+                WT.co_f = "2";
+                var curt = dCur.getTime().toString();
+                for (var i = 2; i <= (32 - curt.length) ; i++) {
+                    WT.co_f += Math.floor(Math.random() * 16.0).toString(16);
+                }
+                WT.co_f += curt;
+                WT.vt_f = "1";
+            }
+            if (typeof (gWtAccountRollup) == "undefined") {
+                WT.vt_f_a = "1";
+            }
+            WT.vt_f_s = WT.vt_f_d = "1";
+            WT.vt_f_tlh = WT.vt_f_tlv = "0";
+        } else {
+            var c = this.dcsGetCookie(name);
+            var id = this.dcsGetIdCrumb(c, "id");
+            var lv = parseInt(this.dcsGetCrumb(c, "lv"));
+            var ss = parseInt(this.dcsGetCrumb(c, "ss"));
+            if ((id == null) || (id == "null") || isNaN(lv) || isNaN(ss)) {
+                return;
+            }
+            WT.co_f = id;
+            var dLst = new Date(lv);
+            WT.vt_f_tlh = Math.floor((dLst.getTime() - adj) / 1000);
+            dSes.setTime(ss);
+            if ((dCur.getTime() > (dLst.getTime() + 1800000)) || (dCur.getTime() > (dSes.getTime() + 28800000))) {
+                WT.vt_f_tlv = Math.floor((dSes.getTime() - adj) / 1000);
+                dSes.setTime(dCur.getTime());
+                WT.vt_f_s = "1";
+            }
+            if ((dCur.getDay() != dLst.getDay()) || (dCur.getMonth() != dLst.getMonth()) || (dCur.getYear() != dLst.getYear())) {
+                WT.vt_f_d = "1";
+            }
+        }
+        WT.co_f = escape(WT.co_f);
+        WT.vtid = (typeof (this.vtid) == "undefined") ? WT.co_f : (this.vtid || "");
+        WT.vtvs = (dSes.getTime() - adj).toString();
+        var expiry = "; expires=" + dExp.toGMTString();
+        var cur = dCur.getTime().toString();
+        var ses = dSes.getTime().toString();
+        //document.cookie = name + "=" + "id=" + WT.co_f + ":lv=" + cur + ":ss=" + ses + expiry + "; path=/" + (((this.fpcdom != "")) ? ("; domain=" + this.fpcdom) : ("") + ";secure");
+        //remove secure to merge cv1 and cv2 webtrends cookie
+        document.cookie = name + "=" + "id=" + WT.co_f + ":lv=" + cur + ":ss=" + ses + expiry + "; path=/" + (((this.fpcdom != "")) ? ("; domain=" + this.fpcdom) : (""));
+        var rc = this.dcsIsFpcSet(name, WT.co_f, cur, ses);
+        if (rc != 0) {
+            WT.co_f = WT.vtvs = WT.vt_f_s = WT.vt_f_d = WT.vt_f_tlh = WT.vt_f_tlv = "";
+            if (typeof (this.vtid) == "undefined") {
+                WT.vtid = "";
+            }
+            WT.vt_f = WT.vt_f_a = rc;
+        }
+    };
+    // Code section for Enable SmartView Transition Page tracking
+    WebTrends.prototype.dcsTP = function () {
+        if (document.cookie.indexOf("WTLOPTOUT=") != -1) {
+            return;
+        }
+        var name = "WT_DC";
+        var expiry = "; expires=Thu, 31-Dec-2020 08:00:00 GMT";
+        var pth = "; path=/";
+        var domain = "";
+        var secure = "; secure"
+        if (document.cookie.indexOf(name + "=tsp=1") != -1) {
+            this.WT.ttp = "1";
+        }
+        if (this.dcsGetMeta("SmartView_Page") == "1") {
+            this.WT.tsp = "1";
+            document.cookie = name + "=tsp=1" + expiry + pth + domain + secure;
+        } else {
+            document.cookie = name + "=; expires=Sun, 1-Jan-1995 00:00:00 GMT;" + pth + domain + secure;
+        }
+    };
+    WebTrends.prototype.dcsGetMeta = function (name) {
+        var elems;
+        if (document.all) {
+            elems = document.all.tags("meta");
+        } else if (document.documentElement) {
+            elems = document.getElementsByTagName("meta");
+        }
+        if (typeof (elems) != "undefined") {
+            for (var i = 1; i <= elems.length; i++) {
+                var meta = elems.item(i - 1);
+                if (meta.name && (meta.name.indexOf(name) == 0)) {
+                    return meta.content;
+                    break;
+                }
+            }
+        }
+        return null;
+    };
+    WebTrends.prototype.dcsIsOnsite = function (host) {
+        if (host.length > 0) {
+            host = host.toLowerCase();
+            if (host == window.location.hostname.toLowerCase()) {
+                return true;
+            }
+            if (typeof (this.onsitedoms.test) == "function") {
+                return this.onsitedoms.test(host);
+            } else if (this.onsitedoms.length > 0) {
+                var doms = this.dcsSplit(this.onsitedoms);
+                var len = doms.length;
+                for (var i = 0; i < len; i++) {
+                    if (host == doms[i]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
+    WebTrends.prototype.dcsTypeMatch = function (pth, typelist) {
+        var type = pth.toLowerCase().substring(pth.lastIndexOf(".") + 1, pth.length);
+        var types = this.dcsSplit(typelist);
+        var tlen = types.length;
+        for (var i = 0; i < tlen; i++) {
+            if (type == types[i]) {
+                return true;
+            }
+        }
+        return false;
+    };
+    WebTrends.prototype.dcsEvt = function (evt, tag) {
+        var e = evt.target || evt.srcElement;
+        while (e && e.tagName && (e.tagName.toLowerCase() != tag.toLowerCase())) {
+            e = e.parentElement || e.parentNode;
+        }
+        return e;
+    };
+    WebTrends.prototype.dcsNavigation = function (evt) {
+        var id = "";
+        var cname = "";
+        var elems = this.dcsSplit(this.navigationtag);
+        var elen = elems.length;
+        var i, e, elem;
+        for (i = 0; i < elen; i++) {
+            elem = elems[i];
+            if (elem.length) {
+                e = this.dcsEvt(evt, elem);
+                id = (e.getAttribute && e.getAttribute("id")) ? e.getAttribute("id") : "";
+                cname = e.className || "";
+                if (id.length || cname.length) {
+                    break;
+                }
+            }
+        }
+        return id.length ? id : cname;
+    };
+    WebTrends.prototype.dcsBind = function (event, func) {
+        if ((typeof (func) == "function") && document.body) {
+            if (document.body.addEventListener) {
+                document.body.addEventListener(event, func.wtbind(this), true);
+            } else if (document.body.attachEvent) {
+                document.body.attachEvent("on" + event, func.wtbind(this));
+            }
+        }
+    };
+    WebTrends.prototype.dcsET = function () {
+        var e = (navigator.appVersion.indexOf("MSIE") != -1) ? "click" : "mousedown";
+        this.dcsBind(e, this.dcsDownload);
+        this.dcsBind(e, this.dcsMailTo);
+        this.dcsBind(e, this.dcsFormButton);
+        this.dcsBind(e, this.dcsOffsite);
+        this.dcsBind(e, this.dcsAnchor);
+        this.dcsBind("contextmenu", this.dcsRightClick);
+        this.dcsBind(e, this.dcsImageMap);
+    };
+    WebTrends.prototype.dcsMultiTrack = function () {
+        if (arguments.length % 2 == 0) {
+            this.dcsSetProps(arguments);
+            var dCurrent = new Date();
+            this.DCS.dcsdat = dCurrent.getTime();
+            this.WT.z_dcsdat = dateToStr(dCurrent, "yyyy-MM-dd hh:mm:ss.fff");
+            this.dcsFPC();
+            this.dcsTag();
+        }
+    };
+    WebTrends.prototype.dcsCleanUp = function () {
+        this.DCS = {};
+        this.WT = {};
+        this.DCSext = {};
+        if (arguments.length % 2 == 0) {
+            this.dcsSetProps(arguments);
+        }
+    };
+
+    function replaceCertainCharatcters(theUrl) {
+        try {
+            theUrl = decodeURIComponent(theUrl);
+            var url = theUrl.replace(/;/g, "-sc-");
+            url = url.replace(/\|/g, "-pipe-");
+            url = url.replace(/\//g, "-fs-");
+            return url;
+        } catch (e) {
+            return theUrl;
+        }
+    }
+
+    WebTrends.prototype.dcsSetProps = function (args) {
+        for (var i = 0; i < args.length; i += 2) {
+            if (args[i].indexOf('WT.') == 0) {
+                this.WT[args[i].substring(3)] = args[i + 1];
+                if (args[i].substring(3) === "z_previouspage") {
+                    this.WT[args[i].substring(3)] = replaceCertainCharatcters(args[i + 1]);
+                }
+            } else if (args[i].indexOf('DCS.') == 0) {
+                this.DCS[args[i].substring(4)] = args[i + 1];
+            } else if (args[i].indexOf('DCSext.') == 0) {
+                this.DCSext[args[i].substring(7)] = args[i + 1];
+            }
+        }
+    };
+
+    //Clear webtrends params, the value is param names separated by ;
+    WebTrends.prototype.mdcClear = function (value) {
+        var args = value.split(";");
+        for (var i = 0; i < args.length; i++) {
+            if (args[i].indexOf('WT.') == 0) {
+                this.WT[args[i].substring(3)] = "";
+            } else if (args[i].indexOf('DCS.') == 0) {
+                this.DCS[args[i].substring(4)] = "";
+            } else if (args[i].indexOf('DCSext.') == 0) {
+                this.DCSext[args[i].substring(7)] = "";
+            }
+        }
+    };
+
+    WebTrends.prototype.mdcSetValue = function (name, value) {
+        if (name.indexOf('WT.') == 0) {
+            this.WT[name.substring(3)] = value;
+        } else if (name.indexOf('DCS.') == 0) {
+            this.DCS[name.substring(4)] = value;
+        } else if (name.indexOf('DCSext.') == 0) {
+            this.DCSext[name.substring(7)] = value;
+        }
+    };
+
+
+    WebTrends.prototype.dcsSplit = function (list) {
+        var items = list.toLowerCase().split(",");
+        var len = items.length;
+        for (var i = 0; i < len; i++) {
+            items[i] = items[i].replace(/^\s*/, "").replace(/\s*$/, "");
+        }
+        return items;
+    };
+    // Code section for Track clicks to download links.
+    WebTrends.prototype.dcsDownload = function (evt) {
+		
+        evt = evt || (window.event || "");
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1))) {
+            var e = this.dcsEvt(evt, "A");
+            if (e && e.href) {
+                var hn = e.hostname ? (e.hostname.split(":")[0]) : "";
+                if (this.dcsIsOnsite(hn) && this.dcsTypeMatch(e.pathname, this.downloadtypes)) {
+                    var qry = e.search ? e.search.substring(e.search.indexOf("?") + 1, e.search.length) : "";
+                    var pth = e.pathname ? ((e.pathname.indexOf("/") != 0) ? "/" + e.pathname : e.pathname) : "/";
+                    var ttl = "";
+                    var text = document.all ? e.innerText : e.text;
+                    var img = this.dcsEvt(evt, "IMG");
+                    if (img.alt) {
+                        ttl = img.alt;
+                    } else if (text) {
+                        ttl = text;
+                    } else if (e.innerHTML) {
+                        ttl = e.innerHTML;
+                    }
+                    if (window.location.href.toLowerCase().contains("/credit-ratings/") && e.href.toLowerCase().contains('sample')) {
+                        var orgId = '0';
+                        var url = window.location.href;
+                        var regex = /\w*-credit-rating-(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        regex = /credit-ratings-tab\/\w+\/(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;WT.pn_sku;');
+                        dcsMultiTrack({
+                            'WT.pn_id': orgId,
+                            'WT.dl': '99',
+                            'WT.z_referringsource': 'ATAG_CreditEdgeResearch~{0}~{1}'.format(orgId, "ViewASampleReport"),
+                            'WT.z_previouspage': orgId,
+                            'WT.vtid': '',
+                            'WT.vtvs': '',
+                            "WT.ti": "Download:" + ttl
+                        });
+                    } else if (window.location.href.contains("/Pages/Default-and-Recovery-Analytics.aspx")) {
+                    } else {
+                        this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", pth, "DCS.dcsqry", e.search || "", "WT.ti", "Download:" + ttl, "WT.dl", "20", "WT.nv", this.dcsNavigation(evt));
+                        this.DCS.dcssip = this.DCS.dcsuri = this.DCS.dcsqry = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                    }
+                }
+            }
+        }
+    };
+    // Code section for Track right clicks to download links.
+    WebTrends.prototype.dcsRightClick = function (evt) {
+		
+        evt = evt || (window.event || "");
+        if (evt) {
+            var btn = evt.which || evt.button;
+            if ((btn != 1) || (navigator.userAgent.indexOf("Safari") != -1)) {
+                var e = this.dcsEvt(evt, "A");
+                if ((typeof (e.href) != "undefined") && e.href) {
+                    if ((typeof (e.protocol) != "undefined") && e.protocol && (e.protocol.indexOf("http") != -1)) {
+                        if ((typeof (e.pathname) != "undefined") && this.dcsTypeMatch(e.pathname, this.downloadtypes)) {
+                            var pth = e.pathname ? ((e.pathname.indexOf("/") != 0) ? "/" + e.pathname : e.pathname) : "/";
+                            var hn = e.hostname ? (e.hostname.split(":")[0]) : "";
+                            this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", pth, "DCS.dcsqry", "", "WT.ti", "RightClick:" + pth, "WT.dl", "25");
+                            this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                        }
+                    }
+                }
+            }
+        }
+    };
+    // Code section for Track clicks to MailTo links.
+    WebTrends.prototype.dcsMailTo = function (evt) {
+        evt = evt || (window.event || "");
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1))) {
+            var e = this.dcsEvt(evt, "A");
+            if (e && e.href && e.protocol) {
+                var qry = e.search ? e.search.substring(e.search.indexOf("?") + 1, e.search.length) : "";
+                if (e.protocol.toLowerCase() == "mailto:") {
+                    if (window.location.href.contains("/page/analystresearch.aspx")) {
+                        var analyNum = window.location.href.substring(window.location.href.indexOf("&bns=") + 5, window.location.href.length);
+                        this.dcsMultiTrack("DCS.dcssip", "", "DCS.dcsuri", e.href, "WT.ti", "MailTo:" + e.innerHTML, "WT.dl", "23", "WT.nv", this.dcsNavigation(evt), "WT.cg_n", "Analyst", "WT.cg_s", "Email", "WT.pn_sku", "AE~" + analyNum);
+                        this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = this.WT.cg_n = this.WT.cg_s = this.WT.pn_sku = "";
+                    } else if (window.location.href.contains("researchandratings")) {
+
+                        // CER@moodys.com
+                        if (e.href.toLowerCase() == 'mailto:cer@moodys.com' && window.location.href.toLowerCase().contains("research-type/creditedge-company-report")) {
+                            this.dcsMultiTrack(
+                                "WT.cg_n", "",
+                                "WT.cg_s", "",
+                                "WT.cg_sec3", "",
+                                "WT.cg_sec4", "",
+                                "WT.cg_sec5", "",
+                                "WT.cg_sec6", "",
+                                "WT.pn_sku", "",
+                                "WT.nv", "",
+                                "WT.mc_id", "",
+                                "WT.si_n", "",
+                                "WT.si_x", "",
+                                "WT.si_cs", "",
+                                "WT.oss", "",
+                                "WT.oss_r", "",
+                                "WT.dl", "23",
+                                "DCS.dcsuri", e.href,
+                                "WT.z_previouspage", "CreditEdge Landing Page",
+                                "WT.pn_id", "CreditEdge Landing Page",
+                                "WT.z_referringsource", "Email~CER~LandingPage");
+                            this.WT.pn_id = this.WT.z_referringsource = this.WT.z_previouspage = "";
+                        } else if ($(e).parents('#mdcRROverviewContent').length==0) {
+                            
+                            this.dcsMultiTrack("DCS.dcssip", "", "DCS.dcsuri", e.href, "WT.ti", "MailTo:" + e.innerHTML, "WT.dl", "23", "WT.nv", this.dcsNavigation(evt), "WT.cg_n", "", "WT.cg_sec4", "");
+                        }
+                        this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = this.WT.cg_n = this.WT.cg_sec4 = "";
+                    } else if (e.href.toLowerCase() == 'mailto:cer@moodys.com' && location.pathname.toLowerCase() == '/mdcaccessdeniedch.aspx') {
+                        var query = decodeURIComponent(location.search);
+                        var docId = 'DOCID';
+                        if (/docid=([^\&]+)/i.test(query)) {
+                            docId = RegExp.$1;
+                        }
+                        this.dcsMultiTrack(
+                                "WT.cg_n", "",
+                                "WT.cg_s", "",
+                                "WT.cg_sec3", "",
+                                "WT.cg_sec4", "",
+                                "WT.cg_sec5", "",
+                                "WT.cg_sec6", "",
+                                "WT.pn_sku", "",
+                                "WT.nv", "",
+                                "WT.mc_id", "",
+                                "WT.si_n", "",
+                                "WT.si_x", "",
+                                "WT.si_cs", "",
+                                "WT.oss", "",
+                                "WT.oss_r", "",
+                                "WT.dl", "23",
+                                "DCS.dcsuri", e.href,
+                                "WT.z_previouspage", "Access Denied Page",
+                                "WT.pn_id", "Access Denied Page",
+                                "WT.z_referringsource", "Email~CER~" + docId);
+                        this.WT.pn_id = this.WT.z_referringsource = this.WT.z_previouspage = "";
+                    } else if (window.location.href.toLowerCase().contains("/credit-ratings/") && e.href.toLowerCase().contains("clientservices")) {
+                        var orgId = '0';
+                        var url = window.location.href;
+                        var regex = /\w*-credit-rating-(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        regex = /credit-ratings-tab\/\w+\/(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        var aMail = e.innerHTML;
+                        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;WT.pn_sku;');
+                        dcsMultiTrack({
+                            'DCS.dcsuri': e.href,
+                            'WT.pn_id': orgId,
+                            'WT.dl': '99',
+                            'WT.z_referringsource': 'ATAG_CreditEdgeResearch~{0}~ContactMe~{1}'.format(orgId, aMail),
+                            'WT.z_previouspage': orgId,
+                            'WT.vtid': '',
+                            'WT.vtvs': '',
+                            'WT.ti': "MailTo:" + e.innerHTML
+                        });
+                    }
+                    else {
+                        this.dcsMultiTrack("DCS.dcssip", "", "DCS.dcsuri", e.href, "WT.ti", "MailTo:" + e.innerHTML, "WT.dl", "23", "WT.nv", this.dcsNavigation(evt));
+                        this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                    }
+                }
+            }
+        }
+    };
+    // Code section for Track clicks to JavaScript links.
+    WebTrends.prototype.dcsJavaScript = function (evt) {
+        evt = evt || (window.event || "");
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1))) {
+            var e = this.dcsEvt(evt, "A");
+            if (e.href && e.protocol) {
+                var qry = e.search ? e.search.substring(e.search.indexOf("?") + 1, e.search.length) : "";
+                if (e.protocol.toLowerCase() == "javascript:") {
+                    //Code section for overleap some self-reg pages' buttons(TC4678)
+                    if (e.className == "mdc-blue-btn RegisterLeft" || e.className == "mdc-blue-btn" || e.className == "RegisterPopupButton" || e.className == "RegisterPopupButtonOver") {
+                        return;
+                    } else {
+                        this.dcsMultiTrack("DCS.dcssip", "", "DCS.dcsuri", e.href, "WT.ti", "JavaScript:" + e.innerHTML, "WT.dl", "22", "WT.nv", this.dcsNavigation(evt));
+                        this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.cl = this.WT.nv = "";
+                    }
+
+                }
+            }
+        }
+    };
+    // Code section for Track form button clicks.
+    WebTrends.prototype.dcsFormButton = function (evt) {
+		var element = evt.target || evt.srcElement;
+		if ($("#alertContainer").find(element).length > 0 || $("#mdcAtAGlanceMonitoringViewTypeContent").find(element).length > 0 || $("#podcast-player").length > 0) {
+			return;
+		}
+        evt = evt || (window.event || "");
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1))) {
+            var tags = ["INPUT", "BUTTON"];
+            for (var j = 0; j < tags.length; j++) {
+                var e = this.dcsEvt(evt, tags[j]);
+                if (e && e.type) {
+                    var type = e.type || "";
+                    if (type && ((type == "submit") || (type == "image") || (type == "button") || (type == "reset")) || ((type == "text") && ((evt.which || evt.keyCode) == 13))) {
+                        var uri = "";
+                        var ttl = "";
+                        var id = 0;
+						
+                        if (e.form) {
+                            // begin: field capture
+                            // end: field capture
+                            uri = e.form.action || window.location.pathname;
+                            ttl = e.form.id || e.form.name || e.form.className || "Unknown";
+                            id = (e.form.method && (e.form.method.toLowerCase() == "post")) ? "27" : "26";
+                        } else {
+                            uri = window.location.pathname;
+                            ttl = e.name || e.id || "Unknown";
+                            id = (tags[j].toLowerCase() == "input") ? "28" : "29";
+                        }
+                        if (uri && ttl && (evt.keyCode != 9)) {
+                            mdcCleanUp(evt);
+                            this.dcsMultiTrack("DCS.dcsuri", uri, "WT.ti", "FormButton:" + ttl, "WT.dl", id, "WT.nv", this.dcsNavigation(evt));
+                        }
+                        this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                        break;
+                    }
+                }
+            }
+        }
+    };
+    // Code section for Track clicks to links leading offsite.
+    WebTrends.prototype.dcsOffsite = function (evt) {
+        evt = evt || (window.event || "");
+        var element = evt.target || evt.srcElement;
+        var srcElementId = element.id;
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1)) && ((srcElementId !== 'viewMoreFinancialLink') && (srcElementId !== 'accessSRMSLink') && (srcElementId !== 'reportEntitiesLink'))) {
+            var e = this.dcsEvt(evt, "A");
+            if (e && e.href) {
+                var hn = e.hostname ? (e.hostname.split(":")[0]) : "";
+                var pr = e.protocol || "";
+                if ((hn.length > 0) && (pr.indexOf("http") == 0) && !this.dcsIsOnsite(hn)) {
+                    var qry = e.search ? e.search.substring(e.search.indexOf("?") + 1, e.search.length) : "";
+                    var pth = e.pathname ? ((e.pathname.indexOf("/") != 0) ? "/" + e.pathname : e.pathname) : "/";
+                    if (pth == "/cfg/client/entitydetail.aspx") {
+                        var refer = "";
+                        var OrgId = "";
+                        var idx = window.location.pathname.lastIndexOf("-");
+                        if (idx > 0 && idx < window.location.pathname.length) {
+                            OrgId = window.location.pathname.substring(idx + 1, window.location.pathname.length);
+                            if (qry.contains("&v=standardreports&repeat=y")) {
+
+                                refer = "ATAG_OV_KI~" + OrgId + "~BuildScenarioAdjustedCreditScores";
+                            } else {
+                                refer = "ATAG_OV_KI~" + OrgId + "~AccessAnalystAdjustedFinancials";
+                            }
+                        }
+                        this.WT.tx_e = this.WT.cg_sec4 = this.WT.cg_sec3 = this.WT.cg_sec5 = this.WT.cg_sec6 = this.WT.cg_s = this.WT.cg_n = this.WT.pn_sku = "";
+                        this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", window.location.pathname, "DCS.dcsqry", this.trimoffsiteparams ? "" : qry, "DCS.dcsref", window.location, "WT.ti", "Offsite:" + hn + pth + "?" + qry, "WT.dl", "24", "WT.nv", this.dcsNavigation(evt), "WT.z_referringsource", refer, "WT.z_previouspage", OrgId);
+                        this.DCS.dcssip = this.DCS.dcsuri = this.DCS.dcsqry = this.DCS.dcsref = this.WT.ti = this.WT.dl = this.WT.nv = this.WT.mc_id = "";
+                    } else if (window.location.href.toLowerCase().contains("/credit-ratings/") && e.href.toLowerCase().contains('/creditedge-research-service')) {
+                        var orgId = '0';
+                        var url = window.location.href;
+                        var regex = /\w*-credit-rating-(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        regex = /credit-ratings-tab\/\w+\/(\d+)/i;
+                        if (regex.test(url)) orgId = RegExp.$1;
+                        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;WT.pn_sku');
+                        dcsMultiTrack({
+                            'WT.pn_id': orgId,
+                            'WT.dl': '99',
+                            'WT.z_referringsource': 'ATAG_CreditEdgeResearch~{0}~ContactMe~{1}'.format(orgId, 'LearnMore'),
+                            'WT.z_previouspage': orgId,
+                            'WT.vtid': '',
+                            'WT.vtvs': '',
+                            'WT.ti': 'Offsite:{0}'.format(e.href)
+                        });
+                    } else if (window.location.href.contains("/Pages/Default-and-Recovery-Analytics.aspx")) {                        
+                    } else {
+                        var tracked = typeof socialLinksTracker === 'object' && socialLinksTracker.track({ name: e.innerHTML, target: e.href });
+                        if (tracked == false) {
+                            this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", pth, "DCS.dcsqry", this.trimoffsiteparams ? "" : qry, "DCS.dcsref", window.location, "WT.ti", "Offsite:" + hn + pth + "?" + qry, "WT.dl", "24", "WT.nv", this.dcsNavigation(evt));
+                            this.DCS.dcssip = this.DCS.dcsuri = this.DCS.dcsqry = this.DCS.dcsref = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Code section for Track clicks to links that contain anchors.
+    WebTrends.prototype.dcsAnchor = function (evt) {
+		
+        evt = evt || (window.event || "");
+        if (evt && ((typeof (evt.which) != "number") || (evt.which == 1))) {
+            var e = this.dcsEvt(evt, "A");
+            if (e && e.href) {
+                var hn = e.hostname ? (e.hostname.split(":")[0]) : "";
+                if (this.dcsIsOnsite(hn) && e.hash && (e.hash != "") && (e.hash != "#")) {
+                    var qry = e.search ? e.search.substring(e.search.indexOf("?") + 1, e.search.length) : "";
+                    var pth = e.pathname ? ((e.pathname.indexOf("/") != 0) ? "/" + e.pathname : e.pathname) : "/";
+                    this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", pth + e.hash, "WT.ti", "Anchor:" + e.hash, "WT.dl", "21", "WT.nv", this.dcsNavigation(evt));
+                    this.DCS.dcssip = this.DCS.dcsuri = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                }
+            }
+        }
+    };
+    // Code section for clicks to image maps.
+    WebTrends.prototype.dcsImageMap = function (evt) {
+		
+        evt = evt || (window.event || "");
+        if (evt) {
+            var e = this.dcsEvt(evt, "AREA");
+            if (e && e.href) {
+                var hn = e.hostname ? (e.hostname.split(":")[0]) : "";
+                if ((hn != "") && e.protocol && (e.protocol.indexOf("http") != -1)) {
+                    var ttl = "";
+                    var map = this.dcsEvt(evt, "MAP");
+                    if (map) {
+                        if (map.name) {
+                            ttl = map.name;
+                        } else if (map.id) {
+                            ttl = map.id;
+                        }
+                    }
+                    var pth = e.pathname ? ((e.pathname.indexOf("/") != 0) ? "/" + e.pathname : e.pathname) : "/";
+                    this.dcsMultiTrack("DCS.dcssip", hn, "DCS.dcsuri", pth, "DCS.dcsqry", e.search || "", "WT.ti", "ImageMap:" + ttl, "WT.dl", "30", "WT.nv", this.dcsNavigation(evt));
+                    this.DCS.dcssip = this.DCS.dcsuri = this.DCS.dcsqry = this.WT.ti = this.WT.dl = this.WT.nv = "";
+                }
+            }
+        }
+    };
+    WebTrends.prototype.dcsAdv = function () {
+        if (this.trackevents && (typeof (this.dcsET) == "function")) {
+            if (window.addEventListener) {
+                window.addEventListener("load", this.dcsET.wtbind(this), false);
+            } else if (window.attachEvent) {
+                window.attachEvent("onload", this.dcsET.wtbind(this));
+            }
+        }
+        this.dcsFPC();
+        this.dcsTP();
+    };
+    WebTrends.prototype.dcsVar = function () {
+        var dCurrent = new Date();
+        var WT = this.WT;
+        var DCS = this.DCS;
+        WT.tz = parseInt(dCurrent.getTimezoneOffset() / 60 * -1) || "0";
+        WT.bh = dCurrent.getHours() || "0";
+        WT.ul = navigator.appName == "Netscape" ? navigator.language : navigator.userLanguage;
+        if (typeof (screen) == "object") {
+            WT.cd = navigator.appName == "Netscape" ? screen.pixelDepth : screen.colorDepth;
+            WT.sr = screen.width + "x" + screen.height;
+        }
+        if (typeof (navigator.javaEnabled()) == "boolean") {
+            WT.jo = navigator.javaEnabled() ? "Yes" : "No";
+        }
+        if (document.title) {
+            if (window.RegExp) {
+                var tire = new RegExp("^" + window.location.protocol + "//" + window.location.hostname + "\\s-\\s");
+                WT.ti = document.title.replace(tire, "");
+            } else {
+                WT.ti = document.title;
+            }
+        }
+        WT.js = "Yes";
+        WT.jv = (function () {
+            var agt = navigator.userAgent.toLowerCase();
+            var major = parseInt(navigator.appVersion);
+            var mac = (agt.indexOf("mac") != -1);
+            var ff = (agt.indexOf("firefox") != -1);
+            var ff0 = (agt.indexOf("firefox/0.") != -1);
+            var ff10 = (agt.indexOf("firefox/1.0") != -1);
+            var ff15 = (agt.indexOf("firefox/1.5") != -1);
+            var ff20 = (agt.indexOf("firefox/2.0") != -1);
+            var ff3up = (ff && !ff0 && !ff10 & !ff15 & !ff20);
+            var nn = (!ff && (agt.indexOf("mozilla") != -1) && (agt.indexOf("compatible") == -1));
+            var nn4 = (nn && (major == 4));
+            var nn6up = (nn && (major >= 5));
+            var ie = ((agt.indexOf("msie") != -1) && (agt.indexOf("opera") == -1));
+            var ie4 = (ie && (major == 4) && (agt.indexOf("msie 4") != -1));
+            var ie5up = (ie && !ie4);
+            var op = (agt.indexOf("opera") != -1);
+            var op5 = (agt.indexOf("opera 5") != -1 || agt.indexOf("opera/5") != -1);
+            var op6 = (agt.indexOf("opera 6") != -1 || agt.indexOf("opera/6") != -1);
+            var op7up = (op && !op5 && !op6);
+            var jv = "1.1";
+            if (ff3up) {
+                jv = "1.8";
+            } else if (ff20) {
+                jv = "1.7";
+            } else if (ff15) {
+                jv = "1.6";
+            } else if (ff0 || ff10 || nn6up || op7up) {
+                jv = "1.5";
+            } else if ((mac && ie5up) || op6) {
+                jv = "1.4";
+            } else if (ie5up || nn4 || op5) {
+                jv = "1.3";
+            } else if (ie4) {
+                jv = "1.2";
+            }
+            return jv;
+        })();
+        WT.ct = "unknown";
+        if (document.body && document.body.addBehavior) {
+            try {
+                document.body.addBehavior("#default#clientCaps");
+                WT.ct = document.body.connectionType || "unknown";
+                document.body.addBehavior("#default#homePage");
+                WT.hp = document.body.isHomePage(location.href) ? "1" : "0";
+            } catch (e) {
+            }
+        }
+        if (document.all) {
+            WT.bs = document.body ? document.body.offsetWidth + "x" + document.body.offsetHeight : "unknown";
+        } else {
+            WT.bs = window.innerWidth + "x" + window.innerHeight;
+        }
+        WT.fv = (function () {
+            var i, flash;
+            if (window.ActiveXObject) {
+                for (i = 10; i > 0; i--) {
+                    try {
+                        flash = new ActiveXObject("ShockwaveFlash.ShockwaveFlash." + i);
+                        return i + ".0";
+                    } catch (e) {
+                    }
+                }
+            } else if (navigator.plugins && navigator.plugins.length) {
+                for (i = 0; i < navigator.plugins.length; i++) {
+                    if (navigator.plugins[i].name.indexOf('Shockwave Flash') != -1) {
+                        return navigator.plugins[i].description.split(" ")[2];
+                    }
+                }
+            }
+            return "Not enabled";
+        })();
+        WT.slv = (function () {
+            var slv = "Not enabled";
+            try {
+                if (navigator.userAgent.indexOf('MSIE') != -1) {
+                    var sli = new ActiveXObject('AgControl.AgControl');
+                    if (sli) {
+                        slv = "Unknown";
+                    }
+                } else if (navigator.plugins["Silverlight Plug-In"]) {
+                    slv = "Unknown";
+                }
+            } catch (e) {
+            }
+            if (slv != "Not enabled") {
+                var i, j, v;
+                if ((typeof (Silverlight) == "object") && (typeof (Silverlight.isInstalled) == "function")) {
+                    for (i = 3; i > 0; i--) {
+                        for (j = 9; j >= 0; j--) {
+                            v = i + "." + j;
+                            if (Silverlight.isInstalled(v)) {
+                                slv = v;
+                                break;
+                            }
+                        }
+                        if (slv == v) {
+                            break;
+                        }
+                    }
+                }
+            }
+            return slv;
+        })();
+        if (this.i18n) {
+            if (typeof (document.defaultCharset) == "string") {
+                WT.le = document.defaultCharset;
+            } else if (typeof (document.characterSet) == "string") {
+                WT.le = document.characterSet;
+            } else {
+                WT.le = "unknown";
+            }
+        }
+        WT.tv = "8.6.2";
+        //	WT.sp="@@SPLITVALUE@@";
+        WT.dl = "0";
+        WT.ssl = (window.location.protocol.indexOf('https:') == 0) ? "1" : "0";
+        DCS.dcsdat = dCurrent.getTime();
+        WT.z_dcsdat = dateToStr(dCurrent, "yyyy-MM-dd hh:mm:ss.fff");
+        DCS.dcssip = window.location.hostname;
+        DCS.dcsuri = window.location.pathname;
+        WT.es = DCS.dcssip + DCS.dcsuri;
+        if (window.location.search) {
+            DCS.dcsqry = window.location.search;
+        }
+        if (DCS.dcsqry) {
+            var dcsqry = DCS.dcsqry.toLowerCase();
+            var params = this.paidsearchparams.length ? this.paidsearchparams.toLowerCase().split(",") : [];
+            for (var i = 0; i < params.length; i++) {
+                if (dcsqry.indexOf(params[i] + "=") != -1) {
+                    WT.srch = "1";
+                    break;
+                }
+            }
+        }
+        if ((window.document.referrer != "") && (window.document.referrer != "-")) {
+            if (!(navigator.appName == "Microsoft Internet Explorer" && parseInt(navigator.appVersion) < 4)) {
+                DCS.dcsref = window.document.referrer;
+            }
+        }
+    };
+    WebTrends.prototype.dcsEscape = function (S, REL) {
+        if (REL != "") {
+            S = S.toString();
+            for (var R in REL) {
+                if (REL[R] instanceof RegExp) {
+                    S = S.replace(REL[R], R);
+                }
+            }
+            return S;
+        } else {
+            return escape(S);
+        }
+    };
+    WebTrends.prototype.dcsA = function (N, V) {
+        if (this.i18n && (this.exre != "") && !this.exre.test(N)) {
+            if (N == "dcsqry") {
+                var newV = "";
+                var params = V.substring(1).split("&");
+                for (var i = 0; i < params.length; i++) {
+                    var pair = params[i];
+                    var pos = pair.indexOf("=");
+                    if (pos != -1) {
+                        var key = pair.substring(0, pos);
+                        var val = pair.substring(pos + 1);
+                        if (i != 0) {
+                            newV += "&";
+                        }
+                        newV += key + "=" + this.dcsEncode(val);
+                    }
+                }
+                V = V.substring(0, 1) + newV;
+            } else {
+                V = this.dcsEncode(V);
+            }
+        }
+        return "&" + N + "=" + this.dcsEscape(V, this.re);
+    };
+    WebTrends.prototype.dcsEncode = function (S) {
+        return (typeof (encodeURIComponent) == "function") ? encodeURIComponent(S) : escape(S);
+    };
+    WebTrends.prototype.dcsEncodeNonAscII = function (url) {
+        var tags = ["WT.ti", "WT.z_referringsource", "WT.z_previouspage", "WT.oss", "WT.mc_id"],
+            asciiChars = /[\x00-\x7F]+/g,
+            nonAsciiChars = /[^\x00-\x7F]+/g,
+            fullEncoded = this.i18n;
+        for (var i = 0; i < tags.length; i++) {
+            var queryReg = new RegExp("([?&])" + tags[i] + "=(.*?)(&|$)", "i");
+            url = url.replace(queryReg, function (match, p1, p2, p3) {
+                var value = fullEncoded ? decodeURIComponent(p2).replace(asciiChars, function(str) {
+                    return encodeURIComponent(str);
+                }) : p2;
+                value = value.replace(nonAsciiChars, function(str) {
+                    return encodeURIComponent(encodeURIComponent(str));
+                });
+                return p1 + tags[i] + '=' + value + p3;
+            });
+        }
+        return url;
+    };
+    WebTrends.prototype.dcsCreateImage = function (dcsSrc) {
+        dcsSrc = this.dcsEncodeNonAscII(dcsSrc);
+        if (document.images) {
+            this.images[this.index] = new Image();
+            this.images[this.index].src = dcsSrc;
+            this.index++;
+        } else {
+            document.write('<IMG ALT="" BORDER="0" NAME="DCSIMG" WIDTH="1" HEIGHT="1" SRC="' + dcsSrc + '">');
+        }
+    };
+    WebTrends.prototype.dcsMeta = function () {
+        var elems;
+        if (document.all) {
+            elems = document.all.tags("meta");
+        } else if (document.documentElement) {
+            elems = document.getElementsByTagName("meta");
+        }
+        
+        var hasCgN = false;
+        var hasCgS = false;
+        
+        if (typeof (elems) != "undefined") {
+            var length = elems.length;
+            
+            for (var i = 0; i < length; i++) {
+                var name = elems.item(i).name;
+                var content = elems.item(i).content;
+                var equiv = elems.item(i).httpEquiv;
+                if (name.length > 0) {
+                    if (name.toUpperCase().indexOf("WT.") == 0) {
+                        if (name.substring(3) === "z_previouspage") {
+                            content = replaceCertainCharatcters(content);
+                        } else if (name.substring(3) === "cg_n") {
+                            hasCgN = true;
+                        } else if (name.substring(3) === "cg_s") {
+                            hasCgS = true;
+                        }
+                        this.WT[name.substring(3)] = content;
+                    } else if (name.toUpperCase().indexOf("DCSEXT.") == 0) {
+                        this.DCSext[name.substring(7)] = content;
+                    } else if (name.toUpperCase().indexOf("DCS.") == 0) {
+                        this.DCS[name.substring(4)] = content;
+                    }
+                }
+            }
+        }
+        
+        if (!hasCgN && !hasCgS) {
+            this.WT["cg_n"] = "Uncategorized";
+
+            if (document.title) {
+                if (window.RegExp) {
+                    var tire = new RegExp("^" + window.location.protocol + "//" + window.location.hostname + "\\s-\\s");
+                    this.WT["cg_s"] = document.title.replace(tire, "").replace(/[^0-9A-Za-z ]/g, "");
+                } else {
+                    this.WT["cg_s"] = document.title;
+                }
+            }
+        }
+    };
+
+    WebTrends.prototype.dcsTag = function () {
+        if (document.cookie.indexOf("WTLOPTOUT=") != -1) {
+            return;
+        }
+        var WT = this.WT;
+        var DCS = this.DCS;
+        var DCSext = this.DCSext;
+        var i18n = this.i18n;
+        var isAtagLoading = "is_atag_loading";
+        var P = "http" + (window.location.protocol.indexOf('https:') == 0 ? 's' : '') + "://" + this.domain + (this.dcsid == "" ? '' : '/' + this.dcsid) + "/dcs.gif?WT.z_dcsid=" + this.dcsid;
+        if (i18n) {
+            WT.dep = "";
+        }
+        for (var N in DCS) {
+            if (DCS[N] && (typeof DCS[N] != "function")) {
+                P += this.dcsA(N, DCS[N]);
+            }
+        }
+        var keys = ["co_f", "vtid", "vtvs", "vt_f_tlv"];
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            if (WT[key]) {
+                P += this.dcsA("WT." + key, WT[key]);
+                delete WT[key];
+            }
+        }
+        for (N in WT) {
+            if (WT[N] && (typeof WT[N] != "function")) {
+                if (N == 'is_atag_loading') {
+                    continue;
+                }
+
+                if (N == 'cg_n' && WT[isAtagLoading]) {
+                    P += this.dcsA("WT." + N, "ATAG");
+                } else if (N == 'cg_s' && WT[isAtagLoading]) {
+                    var orgId = '0';
+                    var url = window.location.href;
+                    var regex = /\w*-credit-rating-(\d+)/i;
+                    if (regex.test(url)) orgId = RegExp.$1;
+                    regex = /credit-ratings-tab\/\w+\/(\d+)/i;
+                    if (regex.test(url)) orgId = RegExp.$1;
+                    this.WT["cg_s"] = orgId;
+                    P += this.dcsA("WT." + N, orgId);
+                } else {
+                    P += this.dcsA("WT." + N, WT[N]);
+                }
+            }
+        }
+
+        if (WT[isAtagLoading]) {
+            delete WT[isAtagLoading];
+        }
+        
+        for (N in DCSext) {
+            if (DCSext[N] && (typeof DCSext[N] != "function")) {
+                if (i18n) {
+                    WT.dep = (WT.dep.length == 0) ? N : (WT.dep + ";" + N);
+                }
+                P += this.dcsA(N, DCSext[N]);
+            }
+        }
+        if (i18n && (WT.dep.length > 0)) {
+            P += this.dcsA("WT.dep", WT.dep);
+        }
+        if (P.length > 2048 && navigator.userAgent.indexOf('MSIE') >= 0) {
+            P = P.substring(0, 2040) + "&WT.tu=1";
+        }
+        this.dcsCreateImage(P);
+        this.WT.ad = "";
+    };
+    WebTrends.prototype.dcsDebug = function () {
+        var t = this;
+        var i = t.images[0].src;
+        var q = i.indexOf("?");
+        var r = i.substring(0, q).split("/");
+        var m = "<b>Protocol</b><br><code>" + r[0] + "<br></code>";
+        m += "<b>Domain</b><br><code>" + r[2] + "<br></code>";
+        m += "<b>Path</b><br><code>/" + r[3] + "/" + r[4] + "<br></code>";
+        m += "<b>Query Params</b><code>" + i.substring(q + 1).replace(/\&/g, "<br>") + "</code>";
+        m += "<br><b>Cookies</b><br><code>" + document.cookie.replace(/\;/g, "<br>") + "</code>";
+        if (t.w && !t.w.closed) {
+            t.w.close();
+        }
+        t.w = window.open("", "dcsDebug", "width=500,height=650,scrollbars=yes,resizable=yes");
+        t.w.document.write(m);
+        t.w.focus();
+    };
+    
+    
+    WebTrends.prototype.getOriginParamValues = function (obj) {
+        var arr = this.convertObjToArr(obj);
+
+        if (arr.length == 0) return;
+
+        var result = {};
+        for (var i = 0; i < arr.length; i += 2) {
+            var propName = arr[i];
+            if (arr[i].indexOf('WT.') == 0) {
+                result[propName] = this.WT[arr[i].substring(3)];
+            } else if (arr[i].indexOf('DCS.') == 0) {
+                result[propName] = this.WT[arr[i].substring(4)];
+            } else if (arr[i].indexOf('DCSext.') == 0) {
+                result[propName] = this.WT[arr[i].substring(7)];
+            }
+        }
+
+        return result;
+    };
+
+    WebTrends.prototype.convertObjToArr = function (obj) {
+        var arr = [];
+        var arg = obj;
+        if (arg && typeof arg === "object") {
+            for (var key in arg) {
+                if (arg.hasOwnProperty(key)) {
+                    arr.push(key, arg[key]);
+                }
+            }
+        }
+
+        return arr;
+    };
+
+    WebTrends.prototype.getWebTrendsUrl = function (obj) {
+        var arr = this.convertObjToArr(obj);
+        //get the origin value back
+        var originObj = this.getOriginParamValues(obj);
+
+        this.dcsSetProps(arr);
+        var dCurrent = new Date();
+        this.DCS.dcsdat = dCurrent.getTime();
+        this.WT.z_dcsdat = dateToStr(dCurrent, "yyyy-MM-dd hh:mm:ss.fff");
+
+        var WT = this.WT;
+        var DCS = this.DCS;
+        var DCSext = this.DCSext;
+        var i18n = this.i18n;
+        var isAtagLoading = "is_atag_loading";
+        var P = "http" + (window.location.protocol.indexOf('https:') == 0 ? 's' : '') + "://" + this.domain + (this.dcsid == "" ? '' : '/' + this.dcsid) + "/dcs.gif?WT.z_dcsid=" + this.dcsid;
+        if (i18n) {
+            WT.dep = "";
+        }
+        for (var N in DCS) {
+            if (DCS[N] && (typeof DCS[N] != "function")) {
+                P += this.dcsA(N, DCS[N]);
+            }
+        }
+        var keys = ["co_f", "vtid", "vtvs", "vt_f_tlv"];
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            if (WT[key]) {
+                P += this.dcsA("WT." + key, WT[key]);
+                delete WT[key];
+            }
+        }
+        for (N in WT) {
+            if (WT[N] && (typeof WT[N] != "function")) {
+                if (N == 'is_atag_loading') {
+                    continue;
+                }
+
+                if (N == 'cg_n' && WT[isAtagLoading]) {
+                    P += this.dcsA("WT." + N, "ATAG");
+                } else if (N == 'cg_s' && WT[isAtagLoading]) {
+                    var orgId = '0';
+                    var url = window.location.href;
+                    var regex = /\w*-credit-rating-(\d+)/i;
+                    if (regex.test(url)) orgId = RegExp.$1;
+                    regex = /credit-ratings-tab\/\w+\/(\d+)/i;
+                    if (regex.test(url)) orgId = RegExp.$1;
+                    this.WT["cg_s"] = orgId;
+                    P += this.dcsA("WT." + N, orgId);
+                } else {
+                    P += this.dcsA("WT." + N, WT[N]);
+                }
+            }
+        }
+
+        if (WT[isAtagLoading]) {
+            delete WT[isAtagLoading];
+        }
+
+        for (N in DCSext) {
+            if (DCSext[N] && (typeof DCSext[N] != "function")) {
+                if (i18n) {
+                    WT.dep = (WT.dep.length == 0) ? N : (WT.dep + ";" + N);
+                }
+                P += this.dcsA(N, DCSext[N]);
+            }
+        }
+        if (i18n && (WT.dep.length > 0)) {
+            P += this.dcsA("WT.dep", WT.dep);
+        }
+        if (P.length > 2048 && navigator.userAgent.indexOf('MSIE') >= 0) {
+            P = P.substring(0, 2040) + "&WT.tu=1";
+        }
+
+        // set value back to origin value;
+        var originKeyValuesArr = this.convertObjToArr(originObj);
+        this.dcsSetProps(originKeyValuesArr);
+
+        return P;
+    };
+
+})();
+
+function dcsMultiTrack() {
+    if (!window._tag) return undefined;
+    var arg = arguments[0], arr = [];
+    if (arg && typeof arg === "object" && arguments.length == 1) {
+        for (var key in arg) {
+            if (arg.hasOwnProperty(key)) {
+                arr.push(key, arg[key]);
+            }
+        }
+        return _tag.dcsMultiTrack.apply(_tag, arr);
+    } else {
+        return _tag.dcsMultiTrack.apply(_tag, arguments);
+    }
+}
+
+function dcsDebug() {
+    if (typeof (_tag) != "undefined") {
+        return (_tag.dcsDebug());
+    }
+}
+
+function dcsTrackDone(callback/*callback(err)*/, timeout, interval) {
+    if (typeof (_tag) === "undefined") {
+        callback.call(null, '_tag is undefined');
+    } else {
+        interval = interval || 50;
+        timeout = timeout || 5000;
+        var timecost = 0,
+            imageId = _tag.index - 1,
+            timerId = setInterval(function () {
+                if (timecost >= timeout || _tag.images[imageId].complete) {
+                    callback.call(null);
+                    clearInterval(timerId);
+                }
+                timecost += interval;
+            }, interval);
+    }
+}
+
+Function.prototype.wtbind = function (obj) {
+    var method = this;
+    var temp = function () {
+        return method.apply(obj, arguments);
+    };
+    return temp;
+};
+
+function mdcCleanUp(evt) {
+    //dcsCleanUp for event triggers with css class 'mdcWebTrenndsCleanUpTracking' 
+    //Author:rongji.su@mkmv.com
+    var evtElement = evt.srcElement || evt.target;
+    if (evtElement.className == 'mdcWebTrenndsCleanUpTracking') {
+        _tag.dcsCleanUp();
+    }
+}
+
+function mdcCleanUp() {
+    if (typeof (_tag) != "undefined") {
+        return _tag.dcsCleanUp();
+    }
+}
+
+function mdcCleanUpProps(args) {
+    if (typeof (_tag) != "undefined") {
+        _tag.mdcClear(args);
+    }
+}
+
+function mdcSetValue(name, value) {
+    if (typeof (_tag) != "undefined") {
+        _tag.mdcSetValue(name, value);
+    }
+}
+
+/*********************************************************************************************************
+* GetDeviceMessage()         ---          Self-Run-Module
+**********************************************************************************************************
+*/
+(function () {
+
+    function getDeviceMessage() {
+        var Sys = {},
+            ua = navigator.userAgent.toLowerCase(),
+            s,
+            browserType,
+            devicename,
+            extension;
+        (s = ua.match(/msie ([\d.]+)/)) ? Sys.ie = s[1] :
+            (s = ua.match(/trident\/.*rv:([\d.]+)/)) ? Sys.ie = s[1] :
+                (s = ua.match(/firefox\/([\d.]+)/)) ? Sys.firefox = s[1] :
+                    (s = ua.match(/chrome\/([\d.]+)/)) ? Sys.chrome = s[1] :
+                        (s = ua.match(/opera.([\d.]+)/)) ? Sys.opera = s[1] :
+                            (s = ua.match(/version\/([\d.]+).*safari/)) ? Sys.safari = s[1] : 0;
+        if (Sys.ie) browserType = 'IE: ' + Sys.ie;
+        if (Sys.firefox) browserType = 'Firefox: ' + Sys.firefox;
+        if (Sys.chrome) browserType = 'Chrome: ' + Sys.chrome;
+        if (Sys.opera) browserType = 'Opera: ' + Sys.opera;
+        if (Sys.safari) browserType = 'Safari: ' + Sys.safari;
+        if (!(devicename = ua.match(/android|ipad|ipaq|iphone|ipod/i))) {
+            devicename = 'unknown';
+        }
+        extension = devicename + ';' + browserType;
+        document.write('<meta name="WT.z_useragent" content="' + extension + '" />');
+    }
+
+    getDeviceMessage();
+
+})();
+
+/*********************************************************************************************************
+* Right Click Webtrends         
+**********************************************************************************************************
+*/
+
+function bindWebTrendsMouseDown(callFun) {
+    return function (evt) {
+        if (evt.which == 1) {
+            callFun(false);
+        }
+        else if (evt.which == 3) {
+            mdcSetValue('WT.dl', '25');
+            callFun(true);
+        }
+    };
+}
+
+function isRightClick(evt) {
+    mdcCleanUpProps('WT.dl');
+    evt = evt || (window.event || "");
+    if (evt) {
+        var btn = evt.which || evt.button;
+        if (btn == 2 || btn == 3) {
+            mdcSetValue('WT.dl', '25');
+            return true;
+        }
+    }
+
+    mdcSetValue('WT.dl', '99');
+    return false;
+}

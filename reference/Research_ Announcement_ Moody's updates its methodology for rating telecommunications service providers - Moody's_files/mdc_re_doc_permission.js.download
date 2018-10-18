@@ -1,0 +1,122 @@
+jQuery.mdc.Re = {
+    DocsSelector:'.mdcResearch .mdcDocumentId',
+    GetDocIds: function () {
+        var aDocIds = [];
+        $(this.DocsSelector).each(
+            function () {
+                if ($(this).val() !== undefined) {
+                    aDocIds.push($(this).val());
+                    $(this).remove();
+                }
+            });
+        return aDocIds;
+    },
+    GetOverviewWidgetDocIds: function (theAssociatedDiv) {
+        var aResearchTable = $('#' + theAssociatedDiv + ' table.mdcOverviewResearch');
+        var aDocIds = [];
+        aResearchTable.each(function () {
+            $(this).find(".mdcDocumentId").each(
+                function () {
+                    aDocIds.push($(this).val());
+                });
+        });
+        return aDocIds ? { docIds: aDocIds, tableObj: aResearchTable } : null;
+    },
+    QueryForDocPermission: function () {
+        $.mdc.permission.research(this.GetDocIds(), this.DataReplace);
+    },
+    DataReplace: function (aDocPermissionArray) {
+        $(".mdcResearch").each(function () {
+            if ($(this).find(".mdcDocumentId").val() == 'undefined') {
+                return;
+            }
+
+            var tdLockIndex = ($(this).find("tbody >tr >th")).index($(this).find(".mdcResearchLock"));
+            var trIndex;
+            for (var i = 0; i < aDocPermissionArray.length; i++) {
+                trIndex = i + 1;
+                var tr = $(this).find("tbody >tr:eq(" + trIndex + ")");
+                var tdLock = tr.find("td:eq(" + tdLockIndex + ")");
+                var docLink = tr.find("a.mdcResearchDocLink");
+
+                if (aDocPermissionArray[i] == 1) {
+                    // Enable link.
+                    if (docLink != 'undefined')
+                        docLink.attr('href', docLink.attr('_href'));
+                    tdLock.html("");
+                }
+                else {
+                    var imgLock = tdLock.find("img");
+                    imgLock.attr("title", "The document is not a part of your current subscription.");
+                    imgLock.attr("class", "");
+
+                    if (aDocPermissionArray[i] == 0) {
+                        // Enable link.
+                        if (docLink != 'undefined') {
+                            docLink.attr('href', docLink.attr('_href'));
+                        }
+                        continue;
+                    }
+
+                    if (docLink == 'undefined') {
+                        continue;
+                    }
+                    docLink.attr('_target', docLink.attr('target'));
+                    var aHref = docLink.attr('_href');
+                    docLink.attr('href', aHref);
+                }
+            }
+        });
+    },
+    QueryForOverviewDocPermission: function (theContentDivId) {
+        var aLockParam = this.GetOverviewWidgetDocIds(theContentDivId);
+        $.mdc.permission.research(aLockParam.docIds, function (docPermission, userEntitlement) {
+            $.mdc.Re.OverviewResearchDataReplace(docPermission, userEntitlement, aLockParam.tableObj);
+        });
+    },
+    OverviewResearchDataReplace: function (aDocPermissionArray, userEntitlement, theResearchTable) {
+        theResearchTable.each(function () {
+            for (var i = 0; i < aDocPermissionArray.length; i++) {
+                var aTd = $(this).find("td.mdcRROverviewWidgetItem:eq(" + i + ")");
+                var imgLock = aTd.find("img.mdcHide");
+                var docLink = aTd.find("a.mdcResearchDocLink");
+
+                if (aDocPermissionArray[i] == 1) {
+                    // Enable link.                 
+                    if (docLink != 'undefined')
+                        docLink.attr('href', docLink.attr('_href'));
+                    //imgLock.attr("src", "");
+                    imgLock.html("");
+                } else {
+                    imgLock.attr("title", "The document is not a part of your current subscription.");
+                    imgLock.attr("class", "");
+
+                    if (aDocPermissionArray[i] == 0) {
+                        // Enable link.
+                        if (docLink != 'undefined')
+                            docLink.attr('href', docLink.attr('_href'));
+                        continue;
+                    }
+
+                    if (docLink == 'undefined')
+                        continue;
+                    docLink.attr('_target', docLink.attr('target'));
+                    //docLink.attr('target', '_self');
+                    var aHref = docLink.attr('_href');
+                    //aHref = aHref + "&docpermission=" + aDocPermissionArray[i];
+                    docLink.attr('href', aHref);
+                }
+            }
+            $(this).attr("class", "");
+        });
+    }
+    , DocTypeFilterChangeHandler: function (theUrl, theValQS, theValue, theTxtQS, theTxt) {
+        if (theValue == "-1") {
+            theValue = "-";
+            theTxt = "-";
+        }
+        theUrl = theUrl.replace("{" + theValQS + "}", encodeURIComponent(theValue));
+        theUrl = theUrl.replace("{" + theTxtQS + "}", encodeURIComponent(theTxt));
+        location.href = theUrl;
+    }
+}

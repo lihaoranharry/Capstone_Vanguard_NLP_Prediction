@@ -1,0 +1,77 @@
+﻿(function ($) {
+
+    var SessionTimeoutManager = function () {
+
+        var SessionTimer = {
+            LAST_PAGE_ACTIVE_TIME: 'MDC.LAST_PAGE_ACTIVE_TIME',
+
+            getTimeoutValue: function() {
+                return $("meta[name='mdc.sto']").attr('content');
+            },
+
+            isRememberMe: function() {
+                var timeout = SessionTimer.getTimeoutValue();
+
+                if (!timeout) {
+                    return true;
+                }
+
+                return false;
+            },
+
+            start: function () {
+                var intervalId = setInterval(function () {
+                    if (SessionTimer.isRememberMe()) {
+                        return;
+                    }
+
+                    var timeout = parseInt(SessionTimer.getTimeoutValue());
+
+                    if (isNaN(timeout)) {
+                        timeout = 60;
+                    }
+
+                    var lastActiveTime = $.cookie(SessionTimer.LAST_PAGE_ACTIVE_TIME);
+
+                    if (lastActiveTime === null || lastActiveTime === '') {
+                        return;
+                    }
+
+                    var date = new Date();
+                    var duration = date.getTime() - lastActiveTime;
+                    var minute = duration / 1000 / 60;
+                    if (minute - timeout > 0) {
+                        $.post('/Identity/LogoutOnly', function (result) {
+                            if (result) {
+                                clearInterval(intervalId);
+                                window.location.reload();
+                            }
+                        });
+                    }
+                }, 60000);
+            },
+
+            setLastActiveTimeCookie: function () {
+                var date = new Date();
+                $.cookie(SessionTimer.LAST_PAGE_ACTIVE_TIME, date.getTime(), { path: '/', secure: true });
+            }
+        };
+
+        return {
+            init: function () {
+                SessionTimer.setLastActiveTimeCookie();
+                SessionTimer.start();
+
+                $(window).on('mousedown', function () {
+                    if (SessionTimer.isRememberMe()) {
+                        return;
+                    }
+                    SessionTimer.setLastActiveTimeCookie();
+                });
+            }
+        }
+    };
+
+    new SessionTimeoutManager().init();
+
+}(jQuery));

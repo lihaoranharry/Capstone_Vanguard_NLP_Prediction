@@ -1,0 +1,324 @@
+/**************************************************************************
+* Contact Us Page       ---       Js Model
+***************************************************************************
+*/
+(function ($) {
+
+    function trackTab(virtualUrl) {
+        dcsMultiTrack('DCS.dcsuri', virtualUrl, 'WT.ti', '');
+    }
+
+    $(document).ready(function() {
+        if (window.location.toString().indexOf("?tab=1") != -1) {
+            $('#mdcContactInfoTab').removeClass('mdcConTabSelected');
+            $('#mdcGOLTab').addClass('mdcConTabSelected');
+            $('#mdcContactInfo').addClass('mdcHide');
+            $('#mdcGOL').removeClass('mdcHide');
+        }
+
+        $('#mdcContactTab .mdcConTab').mdcBaseHover(
+            function() {
+                if ($(this).hasClass('mdcConTabSelected')) return;
+                $(this).toggleClass('mdcConHover');
+            },
+            function() {
+                if ($(this).hasClass('mdcConTabSelected')) return;
+                $(this).toggleClass('mdcConHover');
+            }
+        );
+        $('#mdcContactTab .mdcConTab').click(function() {
+            $(this).siblings().removeClass('mdcConTabSelected');
+            $(this).removeClass('mdcConHover');
+            $(this).addClass('mdcConTabSelected');
+            var sId = $(this).attr('id');
+            var sDesId = sId.substring(0, sId.length - 3);
+            $('#' + sDesId).siblings().css('display', 'none');
+            $('#' + sDesId).css('display', 'block');
+
+            var tabName = document.getElementById(sId).innerHTML;
+            var virUrl = "ContactUs/" + tabName.replace( /\s/g , "");
+            trackTab(virUrl);
+        });
+        $('.mdcWebTrendsDcs').click(function() {
+            var titleValue = $(this).attr('title');
+            if (titleValue != null) {
+                trackTab(titleValue);
+            }
+        });
+
+        var hasProductInstall = DetectFlashVer(6, 0, 65);
+        if (!hasProductInstall) {
+            $("#mdcFlashInstallTipDiv").css("display", "block");
+            $("#golswfIframe").css("display", "none");
+
+        }
+    });
+})(jQuery);
+
+/**************************************************************************
+* Contact Us Form(Ajax)       ---       Js Model
+***************************************************************************
+*/
+(function($) {
+
+    function contactUsForm() {
+        this.ready = false;
+    }
+
+    $.extend(contactUsForm.prototype, {
+        initForm: function() {
+            if (this.ready) return;
+
+            var url = this.getLocaleUrl('/web2case/contactform');
+
+            $.post(url, function(html) {
+                $('#aspnetForm').append(html);
+                $('#mdcBorderOutside, #mdcBorderInside, #mdcBorderOutsideThankYou, #mdcBorderInsideThankYou').center().topZIndex();
+                if ($(document).getUrlParam('op') == 'alert') {
+                    this.openForAlert();
+                }
+                this.initInputBoxes();
+                this.initOnChangeStyle();
+                this.initActionButton();
+                this.initCaptchaRefreshLink();
+            }.bind(this));
+            this.ready = true;
+        },
+        addButton: function(selector) {
+            var sendMsgButton = $(selector);
+            if (!sendMsgButton.length) return;
+            sendMsgButton.click(this.popUp);
+            this.initForm();
+        },
+        popUp: function () {
+            // Reset Position of Popup
+            $('#mdcBorderOutside, #mdcBorderInside, #mdcBorderOutsideThankYou, #mdcBorderInsideThankYou').center();
+            $('#mdcBorderOutside, #mdcBorderInside').mdcShow();
+            if ($("img.captchaImage").width() < 50 || $('input.captchaText').val().length > 0) {
+                $("#btnTryNewWords").click();
+            }
+        },
+        showThankYou: function() {
+            $('#mdcBorderOutside, #mdcBorderInside').mdcHide();
+            $('#mdcBorderOutsideThankYou, #mdcBorderInsideThankYou').mdcShow();
+        },
+        openForAlert: function() {
+			this.initCaptchaRefreshLink();
+            this.setInquiryTypeAsSales();
+            this.popUp();
+        },
+        setInquiryTypeAsSales: function() {
+            var aSelector = $('#mdcRightPanelBottom .selectEnvInquiryType').get(0);
+            if (!aSelector) return;
+            for (var i = 0; i < aSelector.options.length; i++) {
+                if (aSelector.options[i].text == "Sales") {
+                    aSelector.options[i].selected = true;
+                    break;
+                }
+            }
+        },
+        initActionButton: function() {
+            $('#mdcBorderInside .clickToClose').click(function() {
+                $('#mdcBorderOutside, #mdcBorderInside').mdcHide();
+            });
+            $('#mdcBorderInside a.clickToSubmit').click(this.submit.bind(this));
+            $('#mdcBorderInsideThankYou .clickToClose').click(function() {
+                $('#mdcBorderOutsideThankYou, #mdcBorderInsideThankYou').mdcHide();
+            });
+        },
+        initCaptchaRefreshLink: function() {
+            $('#btnTryNewWords').click(function() {
+                $.post($(this).attr('href'), function(data) {
+                    if (data) $('.captchaImage').attr(data);
+                    $('input.captchaText').val('');
+                });
+                return false;
+            });
+        },
+        initOnChangeStyle: function() {
+            $('#country, select.selectEnvInquiryType').on('change', function() {
+                this.style.color = 'black';
+            });
+        },
+        initInputBoxes: function() {
+            var country = $('#country')[0],
+                inquiryType1 = $("#mdcRightPanelBottom .selectEnvInquiryType")[0];
+
+            this.initSelectBox(country);
+            this.initSelectBox(inquiryType1);
+        },
+        initSelectBox: function(inputField) {
+            if (!inputField) return;
+            var aColor = inputField.selectedIndex == 0 ? '#999999' : 'black';
+            inputField.style.color = aColor;
+            inputField.options[0].style.color = aColor;
+        },
+        submit: function() {
+            if (!this.validateInput()) return;
+            var inputValues = {
+                captchaEncoded: $(".captchaImage").attr('code'),
+                captchaText: $(".captchaText").val(),
+                firstName: $("#firstName").val(),
+                lastName: $("#lastName").val(),
+                company: $("#company").val(),
+                phone: $("#phone").val(),
+                email: $("#email").val(),
+                country: $("#country").val(),
+                description: $("#description").val(),
+                region: getRegion($("#country").val()),
+                inquiryType: $("#mdcRightPanelBottom .mdcField select").val()
+            };
+            var url = this.getLocaleUrl('/web2case/submit');
+           $.post(url, inputValues, function(data) {
+                if (data === true) {
+                    this.showThankYou();
+                } else if (typeof data === 'string') {
+                    $('#mdcErrorPanelBottom .mdcCaptchaPadding .mdcError').html(data);
+                }
+            }.bind(this));
+        },
+        getLocaleUrl: function(url) {
+            var qs = $.util.deparam(window.location.href);
+            if (qs !== null) {
+                var cy = qs['cy'], lang = qs['lang'];
+                if (cy !== null && lang !== null) {
+                    url += '?cy=' + cy + '&lang=' + lang;
+                }
+            }
+
+            return url;
+        },
+        validateInput: function() {
+            $('#mdcErrorPanelBottom .mdcCaptchaPadding .mdcError').empty();
+            var firstName = document.getElementById('firstName');
+            var lastName = document.getElementById('lastName');
+            var company = document.getElementById('company');
+            var phone = document.getElementById('phone');
+            var email = document.getElementById('email');
+            var country = document.getElementById('country');
+            var inquiryType1 = $("#mdcRightPanelBottom .selectEnvInquiryType")[0];
+
+            //Hide error message
+            var formError = document.getElementById('formError');
+            if (formError != null) {
+                formError.innerHTML = '';
+                $('#mdcErrorBlurb').addClass('mdcHide');
+            }
+
+            //compute subject
+            var subjectCtl = document.getElementById('subject');
+            if (subjectCtl != null) {
+                subjectCtl.value = $(inquiryType1).val();
+            }
+
+            var nameError = document.getElementById('nameError');
+            var companyError = document.getElementById('companyError');
+            var phoneError = document.getElementById('phoneError');
+            var emailError = document.getElementById('emailError');
+            var countryError = document.getElementById('countryError');
+            var inquiryTypeError = document.getElementById('InquiryTypeError');
+
+            nameError.innerHTML = '';
+            companyError.innerHTML = '';
+            phoneError.innerHTML = '';
+            emailError.innerHTML = '';
+            countryError.innerHTML = '';
+            inquiryTypeError.innerHTML = '';
+
+
+            if (firstName != null && lastName != null && nameError != null) {
+                if ($.trim(firstName.value) + $.trim(lastName.value) == '') {
+                    nameError.innerHTML = $('#nameValidation').val();
+                }
+            }
+
+            if (!checkBlank(company, companyError)) {
+                companyError.innerHTML = $('#companyValidation').val();
+            }
+
+            if (!checkBlank(phone, phoneError)) {
+                phoneError.innerHTML = $('#phoneValidation').val();
+            } else {
+                var phoneNo = phone.value;
+
+                //Reject if non-number characters occur consecutively 
+                var charRegex = /\D{2,}/ ;
+                if (charRegex.test(phoneNo)) {
+                    phoneError.innerHTML = $('#phoneValidValidation').val();
+                } else {
+                    //Strip allowable non-number characters
+                    phoneNo = phoneNo.replace( /\+/g , '');
+                    phoneNo = phoneNo.replace( /\(/g , '');
+                    phoneNo = phoneNo.replace( /\)/g , '');
+                    phoneNo = phoneNo.replace( / /g , '');
+                    phoneNo = phoneNo.replace( /\./g , '');
+                    phoneNo = phoneNo.replace( /-/g , '');
+                    phoneNo = phoneNo.replace( /x/gi , ''); //ext
+
+                    var numberRegex = /^-{0,1}\d*\.{0,1}\d+$/ ;
+
+                    if (!numberRegex.test(phoneNo)) {
+                        phoneError.innerHTML = $('#phoneValidValidation').val();
+                    }
+                }
+
+            }
+
+            if (!checkBlank(email, emailError)) {
+                emailError.innerHTML = $('#emailValidation').val();
+            } else {
+                if (!$.mdc.IsEmail(email.value)) {
+                    emailError.innerHTML = $('#emailValidValidation').val();
+                }                
+            }
+
+            if (!checkBlank(country, countryError)) {
+                countryError.innerHTML = $('#countryValidation').val();
+            }
+
+            if (!checkBlank(inquiryType1, inquiryTypeError)) {
+                inquiryTypeError.innerHTML = $('#inquiryValidation').val();
+            }
+
+            var checkValue = nameError.innerHTML + companyError.innerHTML + phoneError.innerHTML;
+            checkValue += emailError.innerHTML + countryError.innerHTML + inquiryTypeError.innerHTML;
+
+
+            if (checkValue.length != 0) {
+                if (formError != null) {
+                    formError.innerHTML = $('#serveralErrorsValidation').val();
+                    $('#mdcErrorBlurb').removeClass('mdcHide');
+                }
+                return false;
+            }
+            return true;
+        }
+    });
+
+    function checkBlank(textField, errorField) {
+        if (textField != null && errorField != null) {
+            if ($.trim(textField.value) == '' || textField.value == 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    var regionMap = {
+        AMERICAS: ["american samoa", "anguilla", "antigua and barbuda", "argentina", "aruba", "bahamas", "barbados", "belize", "bermuda", "bolivia", "brazil", "canada", "cayman islands", "chile", "colombia", "costa rica", "cuba", "dominica", "dominican republic", "ecuador", "el salvador", "grenada", "guatemala", "guyana", "haiti", "honduras", "jamaica", "mexico", "netherlands antilles", "nicaragua", "panama", "paraguay", "peru", "puerto rico", "saint kitts and nevis", "saint lucia", "suriname", "trinidad and tobago", "turks and caicos islands", "united states", "uruguay", "venezuela", "northern marianas", "saint vincent and the grenadines", "united states minor outlying islands"],
+        ASIA: ["australia", "bangladesh", "bhutan", "cambodia", "china", "christmas island", "cocos (keeling) islands", "cook islands", "east timor", "fiji", "guam", "hong kong", "india", "indonesia", "kiribati", "macau", "malaysia", "maldives", "marshall islands", "mongolia", "nauru", "nepal", "new zealand", "niue", "norfolk island", "palau", "philippines", "papua new guinea", "samoa", "singapore", "solomon islands", "sri lanka", "taiwan", "thailand", "tokelau", "tonga", "tuvalu", "vanuatu"],
+        EMEA: ["faeroe islands", "falkland islands", "libya", "macedonia", "moldova", "reunion ('e' inflected)", "russia", "sao tome and principe (multiple inflections)", "south georgia and south sandwich islands", "tanzania", "vatican city", "wallis and futuna ", "afghanistan", "albania", "algeria", "andorra", "angola", "antarctica", "armenia", "austria", "azerbaijan", "bahrain", "belarus", "belgium", "benin", "bosnia and herzegovina", "botswana", "bouvet island", "british indian ocean territory", "bulgaria", "burkina faso", "burundi", "cameroon", "cape verde", "central african republic", "chad", "channel islands", "comoros", "congo", "cote d'ivoire", "croatia", "cyprus", "czech republic", "denmark", "djibouti", "egypt", "equatorial guinea", "eritrea", "estonia", "ethiopia", "finland", "france", "french guiana", "french polynesia", "french southern territories", "gabon", "gambia", "georgia", "germany", "ghana", "gibraltar", "greece", "greenland", "guadeloupe", "guernsey", "guinea", "guinea-bissau", "hungary", "iceland", "iraq", "ireland", "israel", "italy", "jersey", "jordan", "kazakhstan", "kenya", "kuwait", "kyrgyzstan", "latvia", "lebanon", "lesotho", "liberia", "liechtenstein", "lithuania", "luxembourg", "madagascar", "malawi", "mali", "malta", "martinique", "mauritania", "mauritius", "mayotte", "monaco", "montenegro", "montserrat", "morocco", "mozambique", "namibia", "netherlands", "new caledonia", "niger", "nigeria", "norway", "oman", "pakistan", "poland", "portugal", "qatar", "romania", "rwanda", "saint helena", "saint pierre and miquelon", "san marino", "saudi arabia", "senegal", "serbia", "seychelles", "sierra leone", "slovakia", "slovenia", "somalia", "south africa", "spain", "svalbard and jan mayen", "swaziland", "sweden", "switzerland", "tajikistan", "togo", "tunisia", "turkey", "turkmenistan", "uganda", "ukraine", "united arab emirates", "united kingdom", "uzbekistan", "western sahara", "yemen", "yugoslavia", "zambia", "zimbabwe"],
+        JAPAN: ["japan"]
+    };
+
+    function getRegion(country) {
+        for (var key in regionMap) {
+            if (regionMap.hasOwnProperty(key) && $.inArray(country.toLowerCase(), regionMap[key]) > -1) return key;
+        }
+        return "AMERICAS";
+    }
+
+    $.contactUsForm = new contactUsForm();
+    $.contactUsForm.addButton('#sendmessage');
+})(jQuery);

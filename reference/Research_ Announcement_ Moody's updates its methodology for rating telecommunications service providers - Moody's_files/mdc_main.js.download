@@ -1,0 +1,2332 @@
+var isChrome = (navigator.userAgent.indexOf("Chrome") != -1) ? true : false;
+var mdcLastSearchKeyWord = null;
+var mdcHelpSupportLastSearchKeyword = null;
+
+$(document).ready(
+    function() {
+        $('#mdcLink').mdcInsertSeperatorImgOrBr('Seperator.gif', 700);
+        $('#mdcWelcome').mdcInsertSeperatorImg('Seperator.gif');
+        $('#mdcMyMoodys').mdcInsertSeperatorImg('Seperator.gif');
+        $('#mdcFootNav').mdcInsertSeperatorImg('FooterSeperator.gif');
+        $('#mdcPolicy').mdcInsertSeperatorImg('FooterSeperator.gif');
+        $('#Menu2>li>a>img').mdcSwitchImage();
+        $('#Menu1>li>a>img').mdcSwitchImage2();
+        $('#mdcGuided div.mdcRefine>ul>li>ul').mdcInsertShowMore(12);
+        // For vintage dimension only.
+        $('#mdcGuided div.mdcRefine ul.mdcVintageDim').mdcInsertShowMore(4);
+        $('#mdcBackPrevious>a').click(function() { $.mdc.clearPreviousPageCookie(); });
+        $('#mdcSearch>div>input').blur(function() { if (!$.mdc.MouseOnTypeAhead) $('#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight').addClass('mdcHide'); }).focus(function() { if ($(this).val().length >= 1 && $(this).val() != $(this).attr('mdcSearchValue')) $('#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight').removeClass('mdcHide'); });
+        $('#mdcTypeAheadSpace').mdcBaseHover(function() { $(this).addClass('mdcShow'); }, function() { $(this).removeClass('mdcShow'); });
+        $('#mdcSearch>div>input').keydown(function(event) {
+            if (event.which != 13 && event.which != 38 && event.which != 40 && $('#TypeAhead').length == 0) {
+                $.mdc.TypeAhead.SelectedIndex = -1;
+                return;
+            }
+            if (event.which == 38 || event.which == 40) {
+                var aLinkLength = $("#TypeAhead .item").length;
+                if ($.mdc.TypeAhead.SelectedIndex != "undefined") {
+                    $("#TypeAhead .item").removeClass('mdcTypeAheadSelected');
+                }
+                if (event.which == 38) { //Key is Arrow-Up
+                    $.mdc.TypeAhead.SelectedIndex = ((typeof $.mdc.TypeAhead.SelectedIndex == "undefined") || $.mdc.TypeAhead.SelectedIndex <= 0) ? (aLinkLength - 1) : $.mdc.TypeAhead.SelectedIndex - 1;
+                }
+                if (event.which == 40) {
+                    $.mdc.TypeAhead.SelectedIndex = (typeof $.mdc.TypeAhead.SelectedIndex == "undefined") ? 0 : (($.mdc.TypeAhead.SelectedIndex + 1) % aLinkLength);
+                }
+                $("#TypeAhead .item").eq($.mdc.TypeAhead.SelectedIndex).addClass('mdcTypeAheadSelected');
+            }
+            if (event.which == 13) {
+                if ($.mdc.TypeAhead.SelectedIndex >= 0) {
+                    $("#TypeAhead .item").eq($.mdc.TypeAhead.SelectedIndex).click();
+                } else {
+                    $('#mdcSearch #searchBarLink').click();
+                }
+                event.preventDefault();
+                return false;
+            }
+        }).keyup(function(event) {
+            var aKeyWord = $(this).val();
+            if (mdcLastSearchKeyWord == aKeyWord)
+                return;
+            mdcLastSearchKeyWord = aKeyWord;
+            //$.mdc.typeAhead(event, aKeyWord, $(this).attr('contextCountry'));
+            $.mdc.TypeAhead.Trigger(event, aKeyWord);
+        });
+        //$('#mdcSearch>div>input').mdcTriggerButtonClickInput($('#mdcSearch>div>a'), 'Search entire site');
+        $('#mdcContainer .mdcSearchWithin input').mdcTriggerSiblingClickInput('Search within results');
+        /*For Local Language*/
+        $('#mdcContainer .mdcSearchWithin_es input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_es-es input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_es-mx input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_es-ar input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_pt input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_it input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_fr input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_de input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_ru input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_tr input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_cs input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_zh-cn input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_zh-tw input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_ja input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_ko input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_sk input').mdcTriggerSiblingClickInput('Search within results');
+        $('#mdcContainer .mdcSearchWithin_pl input').mdcTriggerSiblingClickInput('Search within results');
+
+        $('#Menu1>li:eq(0)>ul>li:eq(8)>a').click(function() { $.mdc.pushPreviousPageCookie(); });
+
+        $('#mdcTypeAheadSpace').mouseover(function() { $.mdc.MouseOnTypeAhead = true; }).mouseout(function() { $.mdc.MouseOnTypeAhead = false; });
+        $('#mdcHomeLink').mdcBaseHover(function() { $('#mdcHomeLink div').removeClass('mdcHide'); }, function() { $('#mdcHomeLink div').addClass('mdcHide'); });
+
+        $("#mdcLogo").on("click", "#mdcHomeLink a", function() {
+
+            var tracks = {
+                "DCS.dcsuri": "GH/MoodysLogo",
+                "WT.ti": "Moody's Logo",
+                "WT.z_referringsource": "GH~Moody's Logo",
+                "WT.z_previouspage": location.href,
+                "WT.pn_id": "Global Header",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        $("#mdcContainer").on("click", "#mdcToolBar #mdcMyMoodys #LogOutText", function() {
+
+            var tracks = {
+                "DCS.dcsuri": "HP/Logout",
+                "WT.ti": "Home Page: Log Out link",
+                "WT.z_referringsource": "HP~LogOut",
+                "WT.z_previouspage": location.href,
+                "WT.pn_id": "",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+
+        $("#mdcLogo").on("click", ".topMenuSubClass ul a", function() {
+            var linkName = $(this).text().replace(/[^a-zA-Z0-9]+/g, '');
+
+            var tracks = {
+                "DCS.dcsuri": "GH/AboutMoodys/" + linkName,
+                "WT.ti": "Link: About Moody's",
+                "WT.z_referringsource": "GH~AboutMoodys~" + linkName,
+                "WT.z_previouspage": location.href,
+                "WT.pn_id": "Global Header",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        $("#mdcLogo").on("click", "#mdcLink > a.isCrossLink", function() {
+            var linkName = $(this).text().replace(/[^a-zA-Z0-9]+/g, '');
+
+            var tracks = {
+                "DCS.dcsuri": "GH/" + linkName,
+                "WT.ti": "Link: " + $(this).text(),
+                "WT.z_referringsource": "GH~" + linkName,
+                "WT.z_previouspage": location.href,
+                "WT.pn_id": "Global Header",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+
+        $("#mdcFoot").on("click", "#mdcPolicyAndNav a", function() {
+            var linkName = $(this).text().replace(/[^a-zA-Z0-9&]+/g, '');
+
+            var tracks = {
+                "DCS.dcsuri": "GF/" + linkName,
+                "WT.ti": "Link: " + $(this).text(),
+                "WT.z_referringsource": "GF~" + linkName,
+                "WT.pn_id": "Global Footer",
+                "WT.z_previouspage": location.href,
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        $("#mdcRightContainer").on("click", "#mdcUpcomingEvent a.isCrossLink", function() {
+            var tracks = {
+                "DCS.dcsuri": "HP/FeaturedEvent/RegisterNow",
+                "WT.ti": "HP: FeaturedEvent Banner Click",
+                "WT.z_referringsource": "HP~FE~RegisterNow",
+                "WT.pn_id": "Home Page",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+
+            if ($(this).parent('.more-link').length > 0) {
+                tracks = {
+                    "DCS.dcsuri": "HP/FeaturedEvent/MoreEvents",
+                    "WT.ti": "HP: MoreEvents",
+                    "WT.z_referringsource": "HP~FE~MoreEvents",
+                    "WT.pn_id": "Home Page",
+                    "WT.dl": 99,
+                    "WT.cg_n": "",
+                    "WT.cg_s": ""
+                };
+            }
+
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        $("#mdcRightContainer").on("click", "#mdcProduct a.isCrossLink", function() {
+            var tracks = {
+                "DCS.dcsuri": "HP/FeaturedSolutions/SeeMore",
+                "WT.ti": "HP: FeaturedSolutions Banner Click",
+                "WT.z_referringsource": "HP~FS~SeeMore",
+                "WT.pn_id": "Home Page",
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+
+            if ($(this).parent('.more-link').length > 0) {
+                tracks = {
+                    "DCS.dcsuri": "HP/FeaturedEvent/MoreProductsAndSolutions",
+                    "WT.ti": "HP: MoreProductsAndSolutions",
+                    "WT.z_referringsource": "HP~FE~MoreProductsAndSolutions",
+                    "WT.pn_id": "Home Page",
+                    "WT.dl": 99,
+                    "WT.cg_n": "",
+                    "WT.cg_s": ""
+                };
+            }
+
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        $("#mdcCenterContent").on("click", "img.globeIconTranslated", function() {
+            if ($(this).parents("#mdcResearchSearchResults").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends($(this).data("docid"), "SearchResults", "", "");
+            } else if ($(this).parents("#mdcAtAGlanceTile2").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends($(this).data("docid"), $.atag.getOrgId(), "", "");
+            } else {
+                $.mdc.translation.researchSearchGlobeWebtrends($(this).data("docid"), "Other", "", "");
+            }
+        });
+
+        $("#mdcCenterContent").on("click", "#transDiv a.lnkTrans", function() {
+            var appearsNextToDocId = $(this).parents("#transDiv").parent().find("img.globeIcon").data("docid");
+            var linkHref = $(this).attr("href");
+            var linkHrefExgp = /\/TranslatedDocuments\.aspx\?url=.+--([a-zA-Z0-9_]+)&lang=([a-zA-Z0-9_]+)/ig;
+            var match = linkHrefExgp.exec(linkHref);
+            if (match) {
+                var clickedOnDocId = match[1];
+                var lang = match[2];
+            }
+
+            if ($(this).parents("#mdcResearchSearchResults").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends(appearsNextToDocId, "SearchResults", clickedOnDocId, lang);
+            } else if ($(this).parents("#mdcAtAGlanceTile2").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends(appearsNextToDocId, $.atag.getOrgId(), clickedOnDocId, lang);
+            } else {
+                $.mdc.translation.researchSearchGlobeWebtrends(appearsNextToDocId, "Other", clickedOnDocId, lang);
+            }
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcViewDebtList .mdcATAGExport #mdcATAGPortfolio a", function() {
+            var orgid = $.atag.getOrgId();
+            dcsMultiTrack({
+                'DCS.dcsuri': "ATAG_" + orgid + "/AddToMySecurityLevelPortfolio",
+                'WT.z_referringsource': "AddToMySecurityLevelPortolio~ATAG_Ratings~DebtList~" + orgid,
+                'WT.dl': '99',
+                'WT.cg_n': '',
+                'WT.cg_s': '',
+                'WT.cg_sec3': '',
+                'WT.cg_sec4': '',
+                'WT.ti': 'Link: AddToMySecurityLevelPortfolio',
+                'WT.pn_id': orgid
+            });
+            mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.dl;WT.ti;WT.pn_id');
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcFamilyTree_Mvc .mdcAtAGlanceTabViewOperationArea_Mvc .mdcATAGPortfolio_Mvc a", function() {
+            var orgid = $.atag.getOrgId();
+            dcsMultiTrack({
+                'DCS.dcsuri': "ATAG_" + orgid + "/AddToMyEntityLevelPortfolio",
+                'WT.z_referringsource': "AddToMyEntityLevelPortolio~ATAG_FamilyTree~" + orgid,
+                'WT.dl': '99',
+                'WT.cg_n': '',
+                'WT.cg_s': '',
+                'WT.cg_sec3': '',
+                'WT.cg_sec4': '',
+                'WT.ti': 'Link: AddToMyEntityLevelPortfolio',
+                'WT.pn_id': orgid
+            });
+            mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.dl;WT.ti;WT.pn_id');
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcViewTrancheList .mdcATAGExport #mdcATAGPortfolio a", function() {
+            var orgid = $.atag.getOrgId();
+            dcsMultiTrack({
+                'DCS.dcsuri': "ATAG_" + orgid + "/AddToMySecurityLevelPortfolio",
+                'WT.z_referringsource': "AddToMySecurityLevelPortolio~ATAG_Ratings~TrancheList~" + orgid,
+                'WT.dl': '99',
+                'WT.cg_n': '',
+                'WT.cg_s': '',
+                'WT.cg_sec3': '',
+                'WT.cg_sec4': '',
+                'WT.ti': 'Link: AddToMySecurityLevelPortfolio',
+                'WT.pn_id': orgid
+            });
+            mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.dl;WT.ti;WT.pn_id');
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcViewCoveredBondList .mdcATAGExport #mdcATAGPortfolio a", function() {
+            if (!$(this).attr('trackName')) {
+                var orgid = $.atag.getOrgId();
+                dcsMultiTrack({
+                    'DCS.dcsuri': "ATAG_" + orgid + "/AddToMySecurityLevelPortfolio",
+                    'WT.z_referringsource': "AddToMySecurityLevelPortolio~ATAG_Ratings~TrancheList~" + orgid,
+                    'WT.dl': '99',
+                    'WT.cg_n': '',
+                    'WT.cg_s': '',
+                    'WT.cg_sec3': '',
+                    'WT.cg_sec4': '',
+                    'WT.ti': 'Link: AddToMySecurityLevelPortfolio',
+                    'WT.pn_id': orgid
+                });
+                mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.dl;WT.ti;WT.pn_id');
+            }
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcUnratedOrgOverviewPrintContent #mdcAtagCreditEditPrintContent #mdcUnratedOrgOverviewPrint", function() {
+            var orgid = $.atag.getOrgId();
+            dcsMultiTrack({
+                'WT.z_referringsource': 'ATAG_OV~Print~' + orgid,
+                'WT.cg_n': '',
+                'WT.cg_s': '',
+                'WT.cg_sec3': '',
+                'WT.cg_sec4': '',
+                'WT.ti': 'Link:Print Friendly View',
+                'WT.pn_id': orgid
+            });
+            mdcCleanUpProps('DCS.dcsuri;WT.z_referringsource;WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.dl;WT.ti;WT.pn_id');
+        });
+
+        $("#mdcCenterContent").on("click", "#mdcAtAGlanceFinancialsViewTypeContent .horizon-scroll-left", function() {
+            var orgid = $.atag.getOrgId();
+            var subTabName = $(".mdcAtAGlanceFinancialsViewTab").find(".mdcAtAGlanceViewSelected").data("name");
+            var tracks = {
+                "DCS.dcsuri": "ATAG_Financials/" + subTabName + "/HoverOver/Left",
+                "WT.z_referringsource": "ATAG_Financials~" + subTabName + "~HoverOver~Left",
+                "WT.pn_id": orgid,
+                "WT.dl": 99,
+                "WT.z_previouspage": orgid,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+        $("#mdcCenterContent").on("click", "#mdcAtAGlanceFinancialsViewTypeContent .horizon-scroll-right", function() {
+            var orgid = $.atag.getOrgId();
+            var subTabName = $(".mdcAtAGlanceFinancialsViewTab").find(".mdcAtAGlanceViewSelected").data("name");
+            var tracks = {
+                "DCS.dcsuri": "ATAG_Financials/" + subTabName + "/HoverOver/Right",
+                "WT.z_referringsource": "ATAG_Financials~" + subTabName + "~HoverOver~Right",
+                "WT.pn_id": orgid,
+                "WT.dl": 99,
+                "WT.z_previouspage": orgid,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+        $("#mdcCenterContent").on("click", "#mdcAtAGlanceFinancialsViewTypeContent .adjust-bar-right,#mdcAtAGlanceFinancialsViewTypeContent .adjust-bar-left,#mdcAtAGlanceFinancialsViewTypeContent .adjust-bar-bottom,#mdcAtAGlanceFinancialsViewTypeContent .adjust-bar-top", function() {
+            var orgid = $.atag.getOrgId();
+            var subTabName = $(".mdcAtAGlanceFinancialsViewTab").find(".mdcAtAGlanceViewSelected").data("name");
+            var tracks = {
+                "DCS.dcsuri": "ATAG_Financials/" + subTabName + "/AdjustmentDetailsView/Collapse",
+                "WT.z_referringsource": "ATAG_Financials~" + subTabName + "~AdjustmentDetailsView~Collapse",
+                "WT.pn_id": orgid,
+                "WT.dl": 99,
+                "WT.z_previouspage": orgid,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+        $("#mdcCenterContent").on("click", "#mdcAtAGlanceFinancialsViewTypeContent .adjust-expand-bar-left", function() {
+            var orgid = $.atag.getOrgId();
+            var subTabName = $(".mdcAtAGlanceFinancialsViewTab").find(".mdcAtAGlanceViewSelected").data("name");
+            var tracks = {
+                "DCS.dcsuri": "ATAG_Financials/" + subTabName + "/AdjustmentDetailsView/Expand",
+                "WT.z_referringsource": "ATAG_Financials~" + subTabName + "~AdjustmentDetailsView~Expand",
+                "WT.pn_id": orgid,
+                "WT.dl": 99,
+                "WT.z_previouspage": orgid,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        });
+
+        /* Event Page WebTrends functions */
+        // On tab click.
+        $("#mdcUpcomingEventsTab").on("click", function() {
+            applyTrackInfo(getEventTrackInfo(this));
+        });
+        $("#mdcPastEventsTab").on("click", function() {
+            applyTrackInfo(getEventTrackInfo(this));
+        });
+        $("#mdcMyEventsTab").on("click", function() {
+            var tracks = getEventTrackInfo(this);
+
+            if (document.cookie.length > 0) {
+                var index = document.cookie.indexOf("ClickedMyEvents=");
+
+                if (index == -1) { // The cookie is not existing yet.
+                    document.cookie = "ClickedMyEvents" + "=" + "true" + "; path=/;secure";
+                    tracks["WT.cg_s"] = tracks["WT.cg_s"].concat("_default"); // The first time click MyEvents tab extend cg_s with default character. 
+                } else {           // The cookie is existed then check MyEvents tab has been clicked or not.
+                    var ca = document.cookie.split(';');
+
+                    for (var i = 0; i < ca.length; i++) {
+                        var c = ca[i];
+                        while (c.charAt(0) === ' ')
+                            c = c.substring(1, c.length);
+                        if (c.indexOf("ClickedMyEvents=") === 0) {                        // Find the MyEvents cookie.
+                            if (c.substring("ClickedMyEvents=".length, c.length) === "false") {
+                                document.cookie = "ClickedMyEvents" + "=" + "true" + "; path=/;secure";
+                                tracks["WT.cg_s"] = tracks["WT.cg_s"].concat("_default"); // The first time click MyEvents tab extend cg_s with default character. 
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            applyTrackInfo(tracks);
+        });
+	    
+	    // On MyEvents sub tab click.
+	    $("#mdcEventsQueryTypes").on("click", "a", function () {
+	        var myEventSubTab = "MyUpcomingEvents";
+
+	        if ($(this).text() === "My Past Events") {
+	            myEventSubTab = "MyPastEvents";
+	        }
+
+	        var tracks = {
+	            "WT.cg_s": myEventSubTab,
+	            "WT.dl": 99
+	        };
+	        dcsMultiTrack(tracks);
+	        mdcCleanUpProps('WT.cg_s');
+	    });
+	    
+	    // On event click. Events~[tabName]~[EventID]
+	    $("#mdcEventsDataListTBody a").on("click", function() {
+	        // newsandevents/events/detail_/4400000002162/ed we take '4400000002162' as event id.
+	        var eventId = $(this).attr("href").split('/')[4];
+	        var tabName = getCurrentTabName();
+
+	        var tracks = {
+	            "WT.z_referringsource": "Events~".concat(tabName).concat("~").concat(eventId),
+	            "WT.dl": 99
+	        };
+	        dcsMultiTrack(tracks);
+	        mdcCleanUpProps('WT.z_referringsource');
+	    });
+	    
+	    // On view click. Events~[tabName]~[Calendar/List]View
+	    $("#mdcEventsViewSelector a").on("click", function() {
+	        var viewName = $(this).text().contains("Calendar") ? "CalendarView" : "ListView";
+	        var tabName = getCurrentTabName();
+
+	        var tracks = {
+	            "WT.z_referringsource": "Events~".concat(tabName).concat("~").concat(viewName),
+	            "WT.dl": 99
+	        };
+	        dcsMultiTrack(tracks);
+	        mdcCleanUpProps('WT.z_referringsource');
+	    });
+
+        // Reset MyEvents cookie when user left the page.
+        $(window).on("beforeunload", function() {
+            if (!$("#mdcNoPreviousLinkPageTitle").length || !$("#mdcNoPreviousLinkPageTitle").text().contains("Events")) {
+                document.cookie = "ClickedMyEvents" + "=" + "false" + "; path=/;secure";
+            }
+        });
+
+        // Get WebTrends tag's value when we click.
+	    function getEventTrackInfo(that) {
+	        var currentElement = $(that);
+	        var tabId = currentElement.attr("id");
+	        var tabName = $();
+	        var subTabName = $();
+	        var viewName = $();
+
+	        switch (tabId) {
+	            case "mdcUpcomingEventsTab":
+	                tabName = "UpcomingEvents";
+	                break;
+	            case "mdcPastEventsTab":
+	                tabName = "PastEvents";
+	                break;
+	            case "mdcMyEventsTab":
+	                tabName = "MyEvents";
+	                break;
+	        }
+
+	        if (tabName != "MyEvents") {
+	            subTabName = tabName;
+	        } else {
+	            subTabName = "MyUpcomingEvents";
+	        }
+
+	        viewName = $("#mdcEventsListContent").length != 0 ? "ListView" : "CalendarView";
+
+	        var tabTracks = {
+	            "WT.cg_n": "Events_".concat(tabName),
+	            "WT.cg_s": subTabName,
+	            "WT.cg_sec3": viewName,
+	            "WT.dl" : 99
+	        };
+
+	        return tabTracks;
+	    }
+	    
+        // Add WebTrends tags.
+	    function applyTrackInfo(tracks) {
+	        dcsMultiTrack(tracks);
+	        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.dl');
+	    }
+
+	    function getCurrentTabName() {
+	        var tabName = $(".mdcSearchTabControl span").text().replace(/\s+/g, '');
+
+	        if (tabName === "MyEvents") {
+	            var myEventSubTabName = $("#mdcEventsQueryTypes span").text().replace(/\s+/g, '');
+	            tabName = tabName.concat("~").concat(myEventSubTabName);
+	        }
+
+	        return tabName;
+	    }
+
+        /* End of Event page WebTrends functions */
+
+	    /* Preload Images*/
+	    if (document.images) {
+	        preload_image_object = new Image();
+	        // set image url
+	        image_url = new Array();
+	        image_url[0] = "/_Layouts/Mdc/Images/LoginOver.gif";
+
+	        var i = 0;
+	        for (i = 0; i <= 0; i++) { preload_image_object.src = image_url[i]; }
+	    }
+	    //Region click
+	    var regionSelected = $('#mdcRegion option:selected');
+	    $('#mdcRegion select').change(function() {
+	        if ($(this).val() == regionSelected.val()) {
+	             return;
+	        }
+	        var linkName = $('#mdcRegion option:selected').text();
+	        var tracks = {
+	            "DCS.dcsuri": "GF/RegionalSites/" + linkName,
+	            "WT.ti": "Link: RegionalSites - " + linkName,
+	            "WT.z_referringsource": "GF~RegionalSites~" + linkName,
+	            "WT.pn_id": "Global Footer",
+	            "WT.z_previouspage": location.href,
+	            "WT.dl": 99,
+	            "WT.cg_n": "",
+	            "WT.cg_s": ""
+	        };
+	        dcsMultiTrack(tracks);
+	        mdcCleanUpProps('DCS.dcsuri;WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+	        var win = window.open($(this).val());
+	        if (win == null || win == undefined) {
+	            //Safari doesn't allow window.open to be executed
+	            window.loaction.href = $(this).val();
+	        }
+	    });
+	    $('#mdcDateFilterButtonImg').mdcSwitchImage();
+
+	    //Cross Link 
+	    var regionVal = $('#clwRegion').attr('regionVal');
+	    if (regionVal != undefined && regionVal != '' && regionVal != 'en' && regionVal != 'zh') {
+	        $('#GlobNavBreadcrumbs ul.BrowseRepeaterUL a').addClass('isCrossLink');
+	        $('a').click(
+				function () {
+				    var selfObj = $(this);
+				    var hrefValue = selfObj.attr('href');
+				    if (!selfObj.hasClass('isCrossLink') || $.mdc.CrossLanguageWarning.IsNewWindow(this)
+							|| selfObj.attr('id') == "kampylink" || selfObj.attr('id') == "searchBarLink"
+							|| $.mdc.CrossLanguageWarning.IsFile(this) || $.mdc.CrossLanguageWarning.haveMultiLanguage(hrefValue))
+				        return;
+				    if (null == selfObj.attr("crossHref") || 'undefined' == selfObj.attr("crossHref")) {
+				        selfObj.attr("crossHref", selfObj.attr("href"));
+				        if (null == selfObj.attr("target") || 'undefined' == selfObj.attr("target"))
+				            selfObj.attr("crossTarget", "_self");
+				        else
+				            selfObj.attr("crossTarget", selfObj.attr("target"));
+				    }
+				    $.mdc.CrossLanguageWarning.CrossClick(this, selfObj.attr("crossHref"));
+				});
+	    }
+
+	    $('#clwYes').mdcBaseHover($.mdc.CrossLanguageWarning.hoverEnter, $.mdc.CrossLanguageWarning.hoverLeave);
+	    $('#clwYes').mousedown($.mdc.CrossLanguageWarning.mousedown);
+	    $('#clwNo').mdcBaseHover($.mdc.CrossLanguageWarning.hoverEnter, $.mdc.CrossLanguageWarning.hoverLeave);
+	    $('#clwNo').mousedown($.mdc.CrossLanguageWarning.mousedown);
+
+	    window.onscroll = moveRatingFactorsArea;
+
+	    $(document).mouseup(
+	    	function (event) {
+	    	    if ($('#clwYes').hasClass('mdcBtnSelected')) { $('#clwYes').removeClass('mdcBtnSelected'); }
+	    	    if ($('#clwNo').hasClass('mdcBtnSelected')) { $('#clwNo').removeClass('mdcBtnSelected'); }
+
+	    	});
+
+	    $('#mdcRatingsGroupTable tr.mdcRatingsTitleRow>td:nth-child(3)').css('text-align', 'center').html('<img src="/_layouts/Mdc/Images/ExpandOff.gif" />');
+	    $('#mdcRatingsGroupTable tr.mdcRatingsTitleRow>td:nth-child(3)>img').mdcSwitchImage();
+	    $('#mdcRatingsGroupTable tr.mdcRatingsTitleRow>td:nth-child(3)>img')
+            .mdcToggle(function () { $(this).parent().parent().next().toggleClass('mdcHide'); $(this).attr('src', '/_layouts/Mdc/Images/CollapsOff.gif'); },
+            function () { $(this).parent().parent().next().toggleClass('mdcHide'); $(this).attr('src', '/_layouts/Mdc/Images/ExpandOff.gif'); });
+	    if ($('#mdcRatingsGroupTable tr.mdcRatingsTitleRow').length == 1) {
+	        $('#mdcRatingsGroupTable tr.mdcRatingsTitleRow>td:nth-child(3)>img').click();
+	    }
+
+	    $(document).click(function(event) {
+	        var $target = $(event.target);
+	        var elementId = $target.attr("id");
+	        if (elementId != 'LoginText' && elementId != 'mdcLoginPopUpControl' && $target.parents('#mdcLoginPopUpControl').length == 0) {
+	            $('#mdcLoginPopUpControl').addClass('mdcHide');
+	        }
+	    });
+
+	    ////$('#mdcMenu > li').bind('mouseover', mdcMenuOpenTimer);
+	    $('.mdcTopMenu').bind('click', mdcMenuOpen);
+	    $('#mdcMenu > li').bind('click', mdcMenuOpen);
+	    // $('#mdcMenu > li').bind('mouseout', mdcMenuCloseTimer);
+	    $(document).click(function (event) {
+	        if ($(event.target).parents(".mdcMenuLayer").length == 0 && $(event.target).parents(".TopMenu").length == 0)
+	            mdcMenuClose();
+	    });
+
+	    $(document).click(function (event) {
+	        if ($(event.target).parents("#mdcLink").length == 0) {
+	            $('#mdcLink > a ').has('.topMenuarrow').css('background-color', '');
+	            $('#mdcLink > a').has('.topMenuarrow').css('color', 'white');
+	            $('.topMenuarrow').css('background-position', '');
+	            $('.topMenuSubClass').addClass('mdcHide');
+	        }
+	    });
+
+	    $('#mdcMenu .mdcMenuLayerContent').each(function () {
+	        var aMenuColWidth = 195;
+	        var aMarginLeft = 10;
+	        var aMarginRight = 20;
+	        var $target = $(this);
+	        var aTabId = $target.parent().parent().attr("id");
+	        if (aTabId == "mdcProductsSolutionsTab")
+	            aMenuColWidth = 192;
+
+	        if (!isIE6())
+	            $target.width(1000 + 'px');
+	        var aColArray = $target.find('.Col');
+	        var aTotalWidth = 0;
+	        for (var i = 0; i < aColArray.length; i++) {
+	            aTotalWidth += aMenuColWidth + aMarginRight;
+	        }
+	        var aWidth = aTotalWidth;
+
+	        //compute the width of News & Events
+	        var aTopMenuWidth = $target.parent().siblings('.TopMenu').width() - aMarginLeft - 2;
+	        if (aColArray.length == 1 && $(aColArray[0]).width() < aTopMenuWidth) {
+	            aWidth = aTopMenuWidth;
+	        }
+	        else {
+	            for (var i = 0; i < aColArray.length; i++)
+	                $(aColArray[i]).width(aMenuColWidth + 'px');
+	        }
+	        $target.width(aWidth + 'px');
+	    });
+
+	    $('#mdcMenu .mdcMenuLayer .Col').each(function () {
+	        var aMenuColWidth = 195;
+	        var aTabId = $(this).parent().parent().parent().attr("id");
+	        if (aTabId == "mdcProductsSolutionsTab")
+	            aMenuColWidth = 192;
+
+	        var aHrArray = $(this).find("li.Hr");
+	        if (aHrArray.length == 0)
+	            return;
+	        var aMaxLinkLength = 0;
+	        var aLinkArray = $(this).find("a");
+	        for (var i = 0; i < aLinkArray.length; i++) {
+	            if ($(aLinkArray[i]).width() > aMaxLinkLength)
+	                aMaxLinkLength = $(aLinkArray[i]).width();
+	        }
+	        if (aMaxLinkLength != 0 && aMaxLinkLength < aMenuColWidth)
+	            aHrArray.width(aMaxLinkLength + 'px');
+	    });
+	    $('#mdcMenu .mdcMenuLayer').bgiframe();
+	    $('#mdcLoginPopUpControl').bgiframe();
+	    $("#mdcLoginPage").keydown(function (event) {
+	        if (event.which == 13) {
+	            $('#mdcLoginControl a.mdc-blue-btn').clickLink();
+	            event.preventDefault();
+	        }
+	    });
+	    $("#mdcLoginPopUpControl").keydown(function (event) {
+	        if (event.which == 13) {
+	            $('#mdcLoginPopUpControl a.mdc-blue-btn').clickLink();
+	            event.preventDefault();
+	        }
+	    });
+
+	    $.mdc.CouponExpirationNotify.PopUp();
+
+	    //DE9946  
+	    $('#mdcLink a').each(function () {
+	        if ($(this).context.href.contains("car001")) {
+	            $(this).bind('click', function () {
+	                var aCgnValues = new Array();
+	                aCgnValues = $("meta[name='WT.cg_n']").attr("content").split(';');
+	                dcsMultiTrack('DCS.dcsuri', 'Careers', 'WT.cg_n', 'Careers', 'WT.cg_s', 'Header', 'WT.cg_sec3', aCgnValues.pop());
+	            });
+	        }
+	    });
+	    $('#mdcFootNav a').each(function () {
+	        if ($(this).context.href.contains("car001")) {
+	            $(this).bind('click', function () {
+	                var aCgnValues = new Array();
+	                aCgnValues = $("meta[name='WT.cg_n']").attr("content").split(';');
+	                dcsMultiTrack('DCS.dcsuri', 'Careers', 'WT.cg_n', 'Careers', 'WT.cg_s', 'Footer', 'WT.cg_sec3', aCgnValues.pop());
+	            });
+	        }
+	    });
+
+	    selfRegUserActivaitionMsg();
+
+	    $('#HelpSupportSearchBoxContainer .searchQuestionsBox').keydown(function (event) {
+	        if (event.which != 13) { return; }
+	        if (event.which == 13) {
+	            $('#HelpSupportSearchBtn').click();
+	            event.preventDefault();
+	            return false;
+	        }
+	    }).keyup(function (event) {
+	        var aKeyWord = $(this).val();
+	        if (mdcHelpSupportLastSearchKeyword == aKeyWord)
+	            return;
+	        mdcHelpSupportLastSearchKeyword = aKeyWord;
+	    });
+
+	    $.mdc.AustraliaPopup.isAustralia();
+	});
+
+jQuery.mdc.researchAlert = {
+    GetDimensionInfo: function () {
+        return $('#mdcDimensionDetailInfo').text();
+    },
+    SetAlertForCriteria: function (theUrl) {
+        if (null == theUrl || "" == theUrl) {
+            var isIE = (navigator.appVersion.indexOf("MSIE") != -1) ? true : false;
+            var isWin = (navigator.appVersion.toLowerCase().indexOf("win") != -1) ? true : false;
+            var isOpera = (navigator.userAgent.indexOf("Opera") != -1) ? true : false;
+            
+            var sWidth = document.body.offsetWidth;
+            var sHeight = document.body.offsetHeight;
+            //var backgroundDiv = $('<div id="backgroundDiv" style="position:absolute; top:0; left:0; background:0xffffff; filter:progid:DXImagesTransform.Microsoft.Alpha(style=3,opacity=25,finishOpacity=75); opacity:0.5;width:' 
+            //		+ sWidth + 'px; height:' + sHeight + 'px; z-index:10000;"></div>');
+            var bgObj = document.getElementById('backgroundDivForSetAlert');
+            if (null == bgObj) {
+                bgObj = document.createElement("div");
+                // <div   id="bgDiv"   style="position:absolute;   top:0;   background-color:#777;   filter:progid:DXImagesTransform.Microsoft.Alpha(style=3,opacity=25,finishOpacity=75);   opacity:0.6;   left:0;   width:918px;   height:768px;   z-index:10000;"> </div>   
+                bgObj.setAttribute("id", "backgroundDivForSetAlert");
+                bgObj.style.position = "absolute";
+                bgObj.style.top = "0";
+                bgObj.style.left = "0";
+                bgObj.style.background = "#ffffff";
+                bgObj.style.filter = "progid:DXImageTransform.Microsoft.Alpha(style=3,opacity=25,finishOpacity=75";
+                bgObj.style.opacity = "0.5";
+                bgObj.style.width = sWidth + "px";
+                bgObj.style.height = sHeight + "px";
+                bgObj.style.zIndex = "10000";
+                document.body.appendChild(bgObj);
+            }
+            bgObj.style.display = "";
+
+            var popUpObj = document.getElementById('mdcSetAlertPopUpDiv');
+            if (null == popUpObj) {
+                popUpObj = document.createElement("div");
+                popUpObj.setAttribute("id", "mdcSetAlertPopUpDiv");
+                popUpObj.style.position = "absolute";
+                popUpObj.style.left = "50%";
+                popUpObj.style.top = "50%";
+                popUpObj.style.marginLeft = "-270px";
+                popUpObj.style.marginTop = -120 + document.documentElement.scrollTop + "px";
+                popUpObj.style.width = "700px";
+                popUpObj.style.height = "400px";
+                popUpObj.style.zIndex = "10002";
+                document.body.appendChild(popUpObj);
+            }
+            //Must after OuterDiv has been added to DOM
+            if (isIE && isWin && !isOpera)
+                popUpObj.innerHTML = '<object classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" id="mdcSetAlertPopUp" width="700" height="400" codebase="//fpdownload.macromedia.com/get/flashplayer/current/swflash.cab"><param name="loop" value="false"/><param name="movie" value="/_Layouts/Mdc/Swfs/AlertPopUp_8.0.0.0.swf" /><param name="quality" value="high" /><param name="bgcolor" value="#869ca7" /><param name="allowScriptAccess" value="always" /><param name="wmode" value="transparent" /></object>';
+            else
+                popUpObj.innerHTML = '<embed id="mdcSetAlertPopUp" src="/_Layouts/Mdc/Swfs/AlertPopUp_8.0.0.0.swf" quality="high" bgcolor="#869ca7" width="700" height="400" name="mdcSetAlertPopUp" align="middle" play="true" loop="false" quality="high" allowscriptaccess="sameDomain" wmode="transparent" type="application/x-shockwave-flash" pluginspage="//www.adobe.com/go/getflashplayer"></embed>';
+            popUpObj.style.display = "";
+            document.getElementById('mdcSetAlertPopUp').focus();
+        } else
+            location.href = theUrl;
+    }
+};
+
+function closeSetAlert() {
+    var bkDiv = document.getElementById('backgroundDivForSetAlert');
+    bkDiv.style.display = "none";
+    var popUp = document.getElementById('mdcSetAlertPopUpDiv');
+    popUp.style.display = "none";
+}
+
+function moveRatingFactorsArea() {
+    var popUpObj = document.getElementById('mdcRatingFactorsGridPopUpDiv');
+    var bgObj = document.getElementById('backgroundDivForRatingFactorsGrid');
+    var currentScrollTop = window.scrollY || window.pageYOffset || document.body.scrollTop || document.documentElement.scrollTop;
+
+    if (popUpObj !== null && popUpObj.style.display != "none") {
+        var y = (currentScrollTop + (document.documentElement.clientHeight - popUpObj.offsetHeight) / 2) + "px";
+        var screenHeight = document.documentElement.clientHeight;
+        var top = parseInt(Math.abs(screenHeight - popUpObj.offsetHeight) / 2);
+
+        if (initPopUpObjTop == popUpObj.style.top) {
+            previousScrollTop = 0;
+            initPopUpObjTop = "-1px";
+        }
+        else {
+            if (currentScrollTop >= previousScrollTop) //scroll down 
+            {
+                if (popUpObj.offsetTop + parseInt(popUpHeight) < r[3]) {
+                    popUpObj.style.top = popUpObj.offsetTop + currentScrollTop - previousScrollTop + "px";
+                }
+                else if (popUpObj.offsetTop + parseInt(popUpHeight) - r[3] < Math.abs(currentScrollTop - previousScrollTop)) {
+                    popUpObj.style.top = popUpObj.offsetTop + popUpObj.offsetTop + parseInt(popUpHeight) - r[3] + "px";
+                }
+
+            }
+            else //scroll up 
+            {
+                if (popUpObj.offsetTop + currentScrollTop - previousScrollTop > r[2]) {
+                    popUpObj.style.top = popUpObj.offsetTop + currentScrollTop - previousScrollTop + "px";
+                }
+                //else
+                //popUpObj.style.top = r[2];
+            }
+        }
+
+        var screenWidth = document.documentElement.offsetWidth;
+        var left = parseInt(Math.abs(screenWidth - parseInt(popUpObj.style.width)) / 2);
+        if (screenWidth < parseInt(popUpObj.style.width))
+            popUpObj.style.left = "0px";
+        else {
+            popUpObj.style.left = left + document.documentElement.scrollLeft + "px";
+        }
+        previousScrollTop = currentScrollTop;
+    }
+}
+
+function closeRatingFactors() {
+    var bkDiv = document.getElementById('backgroundDivForRatingFactorsGrid');
+    bkDiv.style.display = "none";
+    var popUp = document.getElementById('mdcRatingFactorsGridPopUpDiv');
+    popUp.style.display = "none";
+    document.body.removeChild(popUp);
+}
+
+jQuery.mdc.login = {
+    gigya: '',
+    onLoginFailed: function (errorMsg) {
+        var curMessage;
+        if (typeof errorMsg === 'string') {
+            curMessage = {
+                style: 'ErrorMessage',
+                error: errorMsg
+            };
+        } else {
+            curMessage = errorMsg;
+        }
+
+        var mdcLoginErrorMsgDiv = $('div[id^="mdcLoginErrorMsgControl"]');
+        mdcLoginErrorMsgDiv.removeClass().addClass(curMessage.style).mdcShow();
+        mdcLoginErrorMsgDiv.find('div.mdcErrorText').html(curMessage.error).fadeIn('slow');
+
+        mdcLoginErrorMsgDiv = $('div[id^="mdcLoginPopUpErrorMsgControl"]');
+        mdcLoginErrorMsgDiv.mdcShow();
+        mdcLoginErrorMsgDiv.find('td.mdcErrorText').html(curMessage.error).fadeIn('slow');
+
+        $('div[class^="mdcLoginSuccess"]').mdcHide();
+        $('div#mdcLoginAtagControl div.atagUserName').removeClass('atagUserName');
+        $('div#mdcLoginControl div.mdcGigyaLine').removeClass('mdcGigyaLine').addClass('mdcGigyaLineForPopUpHint');
+        $('div#mdcLoginControl div.mdcGigyaStatement').removeClass('mdcGigyaStatement').addClass('mdcGigyaStatementForPopUpHint');
+    },
+    fadeOutError: function () {
+        $('div[id^="mdcLoginErrorMsgControl"] div.mdcErrorText').fadeOut('fast');
+        $('div[id^="mdcLoginPopUpErrorMsgControl"] td.mdcErrorText').fadeOut('fast');
+    },
+    onLoggedIn: function (data) {
+        document.title = 'redirecting';
+        if (data.isLinked) {
+            var curProvider = $.mdc.login.gigya.provider.toString().toCamelCase();
+            dcsMultiTrack('DCS.dcsuri', 'Login/' + curProvider + '/', 'WT.cg_n', 'Login', 'WT.cg_s', curProvider, 'WT.dcsvid', data.userId, 'WT.ti', 'redirecting');
+            dcsMultiTrack('DCS.dcsuri', 'Link/' + curProvider + '/', 'WT.cg_n', 'Link', 'WT.cg_s', curProvider);
+        } else {
+            $.gigya.notifyLogin(data.notify);
+            dcsMultiTrack('WT.dcsvid', data.userId, 'WT.ti', 'redirecting');
+        }
+        document.body.innerHTML = '';
+        dcsTrackDone(function () {
+            window.location.href = data.redirectUrl;
+        }, 1000);
+    },
+    submit: function (sender, panel, url) {
+        if ($(sender).hasClass('disabled')) return;
+        $(sender).addClass('disabled');
+        if (!url) url = '/identity/login';
+        this.fadeOutError();
+        var $this = this,
+            data = {
+                UserName: $(panel).find(':text').val(),
+                Password: $(panel).find(':password').val(),
+                IsRememberMe: $(panel).find(':checkbox').is(':checked'),
+                GigyaUser: JSON.stringify($this.gigya.user)
+            };
+        $.post(url, data, function (response) {
+            if (typeof response === 'object') {
+                if (response.isLocked) {
+                    window.location.href = response.redirectUrl;
+                    return;
+                }
+                if (response.isLoggedIn) {
+                    $this.checkPasswordSharing(response, data.UserName);
+                } else {
+                    $this.onLoginFailed(response);
+                }
+            } else {
+                $this.onLoginFailed('System error on login.');
+            }
+            $(sender).removeClass('disabled');
+        }).error(function (jqXhr) {
+            var response = $.parseJSON(jqXhr.responseText);
+            $this.onLoginFailed(response.error);
+            $(sender).removeClass('disabled');
+        });
+    },
+    checkPasswordSharing: function (response, name) {
+        var $this = this;
+        if (response.passwordSharing == 0) {
+            $this.onLoggedIn(response);
+        } else if (response.passwordSharing == 2) {
+            var msg = $("#userSessionsFullWarningMessage").val();
+            var currentLaguage = $("#localeInfoCurrentLanguage").val();
+            $this.confirmLogin(msg,
+                           function () {
+                               dcsMultiTrack('DCS.dcsuri', 'login_machine3', 'WT.cg_n', 'Login', 'WT.cg_s', 'Login', 'WT.dcsvid', response.userId, 'WT.cg_sec3', 'Machine3', 'WT.cg_sec4', currentLaguage);
+                               var aArgs = "DCS.dcsuri;" + "WT.cg_n;" + "WT.cg_s;" + 'WT.dcsvid;' + "WT.cg_sec3;" + "WT.cg_sec4;";
+                               mdcCleanUpProps(aArgs);
+                               $.ajax({
+                                   url: "/identity/KickOffFirstSession", type: "POST", data: { userName: name }, success: function (responseKickOff) {
+                                       if (!responseKickOff.isSuccess) {
+                                           window.location.href = responseKickOff.logoutUrl;
+                                       } else {
+                                           $this.onLoggedIn(response);
+                                       }
+                                   }, async: false
+                               });
+                           },
+                            function () {
+                                dcsMultiTrack('DCS.dcsuri', 'logincancelled_machine3', 'WT.cg_n', 'Login', 'WT.cg_s', 'Cancel', 'WT.dcsvid', response.userId, 'WT.cg_sec3', 'Machine3', 'WT.cg_sec4', currentLaguage);
+                                var currentUrl = window.location.href;
+                                $.post("/Identity/Logout", function () {
+                                    window.location.href = currentUrl;
+                                });
+                            });
+        }
+        else if (response.passwordSharing == 1) {
+            $.post("/identity/SetUserOnlineStatus", { userName: name }, function (responseSet) {
+                if (!responseSet.isSuccess) {
+                    window.location.href = responseSet.logoutUrl;
+                } else {
+                    $this.onLoggedIn(response);
+                }
+            });
+        }
+    },
+    confirmLogin: function (msg, callbackOk, callbackCancel) {
+        tb_show("", "#TB_inline?inlineId=userSessionFullPopupMessage&width=450&modal=true&TB_modal_class=CrossLang_TB_modal"); //
+        $("#TB_overlay").css({ 'background-color': '#ffffff', 'filter': 'alpha(opacity=50)', '-moz-opacity': '0.5', 'opacity': '0.5' });
+        $("#TB_window").css({ 'border': '0px solid #cccccc' });
+        $("#TB_window").css({ 'background-color': 'transparent' });
+        $("#TB_ajaxContent").css({ "padding": "0px 0px 0px 0px" });
+        $("#UserSessionFullPopupContent").html(msg);
+        $(".UserSessionFullPopupDiv").css({ "left": ($(document.body)[0].clientWidth - 450) / 2 + "px" });
+        $("#continueLoginButton").click(function () {
+            if ($.isFunction(callbackOk)) {
+                callbackOk.apply();
+            }
+            tb_remove();
+        });
+        $("#cancelLoginButton, #UserSessionFullWarningCloseButton").click(function () {
+            if ($.isFunction(callbackCancel)) {
+                callbackCancel.apply();
+            }
+            tb_remove();
+        });
+    },
+    socialLinkRegister: {
+        setEnterKey: function () {
+            $("#mdcLoginLinkSocialControl").keydown(function (event) {
+                if (event.which == 13) {
+                    $('#mdcLoginLinkSocialControl a.mdc-blue-btn').clickLink();
+                    event.preventDefault();
+                }
+            });
+        },
+        show: function () {
+            var $this = this;
+            if ($('#socialLoginLinkPanel').length === 0) {
+                $.get('/gigya/LinkRegisterView', function (html) {
+                    $('#mdcRightDecorator').prepend(html);
+                    $this.welcome();
+                    $this.setEnterKey();
+                }, 'html');
+            } else {
+                $('#socialLoginLinkPanel').mdcShow();
+                $this.welcome();
+            }
+        },
+        hide: function () {
+            $('#socialLoginLinkPanel').mdcHide();
+        },
+        welcome: function () {
+            var user = $.mdc.login.gigya.user;
+            if (user) {
+                var userName = (user.firstName || user.firstName) ? user.firstName + ' ' + user.lastName : user.email;
+                $('#socialLoginLinkPanel #mdcSocialWelcome span').text(userName);
+            }
+        },
+        register: function (postUrl) {
+            $.util.submitForm(postUrl, { gigya: JSON.stringify($.mdc.login.gigya.user) });
+        },
+        linkAccount: function (sender) {
+            $.mdc.login.submit(sender, '#socialLoginLinkPanel', '/identity/loginlink');
+        },
+        init: function (gigyaObj) {
+            if (gigyaObj && gigyaObj.user) {
+                $.mdc.login.gigya = gigyaObj;
+                this.show();
+            }
+        }
+    }
+};
+
+jQuery.mdc.atagOverview = {
+    SetRatingFactorsGrid: function () {
+
+        var isIE = (navigator.appVersion.indexOf("MSIE") != -1) ? true : false;
+        var isWin = (navigator.appVersion.toLowerCase().indexOf("win") != -1) ? true : false;
+        var isOpera = (navigator.userAgent.indexOf("Opera") != -1) ? true : false;
+        var isFF = (navigator.userAgent.indexOf("Firefox") != -1) ? true : false;
+
+        r = [0, document.documentElement.scrollWidth, 0, document.documentElement.scrollHeight];
+        //to judge if the init scroll, that is the grid move to the init position through move the scrollbar
+        scrollCount = 0;
+
+        var closeBtnHTML = '<div><a href="javascript:void(0)" style="text-decoration:none" onclick="closeRatingFactors()"><img src="/_layouts/Mdc/Images/close-button-gray.png" alt="Close"/></a></div>';
+
+        var sWidth, sHeight;
+        sWidth = document.body.offsetWidth;
+        sHeight = document.body.offsetHeight;
+
+        var bgObj = document.getElementById('backgroundDivForRatingFactorsGrid');
+
+        if (null == bgObj) {
+            bgObj = document.createElement("div");
+
+            bgObj.setAttribute("id", "backgroundDivForRatingFactorsGrid");
+            bgObj.style.position = "absolute";
+            bgObj.style.top = "0";
+            bgObj.style.left = "0";
+            bgObj.style.background = "#ffffff";
+            bgObj.style.filter = "progid:DXImageTransform.Microsoft.Alpha(style=3,opacity=25,finishOpacity=75";
+            bgObj.style.opacity = "0.5";
+            bgObj.style.width = "100%";
+            bgObj.style.height = document.documentElement.scrollHeight + "px";
+            bgObj.style.zIndex = "10000";
+            document.body.appendChild(bgObj);
+        }
+        bgObj.style.display = "";
+
+        //set popup div height and width
+        var ratingFactorGridObj = document.getElementById('mdcRatingFactorsContent');
+        var ratingFactorGridContent = ratingFactorGridObj.innerHTML;
+        var tableObj = ratingFactorGridObj.getElementsByTagName('table');
+
+        var gridWidth = $("#mdcRatingFactorsContent>table").width() + 50;
+        var gridHeight = $("#mdcRatingFactorsContent").height();
+
+        //var gridHeight = ratingFactorGridObj.offsetHeight;	    
+
+        var contentDivWidth = gridWidth + "px";
+        var contentDivheight = gridHeight + "px";
+
+        var shadowDivWidth = gridWidth + 20 + "px";
+        var shadowDivHeight = gridHeight + 20 + "px";
+
+        var outerDivWidth = shadowDivWidth;
+        var outerDivHeight = shadowDivHeight;
+
+        var moveable = false;
+        var popUpObj = document.getElementById('mdcRatingFactorsGridPopUpDiv');
+
+
+        if (null == popUpObj) {
+            var bodyHeight = document.body.clientHeight;
+            var bodyWidth = document.body.clientWidth;
+
+            popUpObj = document.createElement("div");
+            popUpObj.setAttribute("id", "mdcRatingFactorsGridPopUpDiv");
+            popUpObj.style.position = "absolute";
+            popUpObj.style.width = outerDivWidth;
+            popUpObj.style.height = outerDivHeight;
+            popUpObj.style.overflow = "hidden";
+            popUpObj.style.zIndex = "10002";
+            popUpWidth = popUpObj.style.width;
+            popUpHeight = popUpObj.style.height;
+
+            var screenWidth = document.documentElement.clientWidth + document.documentElement.scrollLeft;
+            var screenHeight = document.documentElement.clientHeight;
+            var left = parseInt(Math.abs(screenWidth - parseInt(popUpWidth)) / 2);
+            var top = parseInt(Math.abs(screenHeight - parseInt(popUpHeight)) / 2);
+            //popUpObj.style.top = (top + document.documentElement.scrollTop) + "px";
+            popUpObj.style.left = left + document.documentElement.scrollLeft + "px";
+            popUpObj.style.top = (window.scrollY || window.pageYOffset || document.body.scrollTop || document.documentElement.scrollTop) + document.documentElement.clientHeight * 0.1 + "px";
+            initPopUpObjTop = popUpObj.style.top;
+
+            //start drag
+            popUpObj.onmousedown = function (event) {
+
+                if (!event)
+                    event = window.event;
+                if (isIE)
+                    popUpObj.setCapture(false);
+                else if (isFF)
+                    window.captureEvents(Event.MOUSEMOVE | Event.MOUSEUP);
+
+                x0 = event.clientX;
+                y0 = event.clientY;
+
+                x1 = popUpObj.offsetLeft;
+                y1 = popUpObj.offsetTop;
+
+                moveable = true;
+
+            };
+            //stop drag
+            popUpObj.onmouseup = function (event) {
+                if (moveable) {
+                    if (isIE)
+                        popUpObj.releaseCapture();
+                    else if (isFF)
+                        window.releaseEvents(Event.MOUSEMOVE | Event.MOUSEUP);
+
+                    moveable = false;
+                }
+            };
+
+            //start drag
+            popUpObj.onmousemove = function (event) {
+                if (!event)
+                    event = window.event;
+                if (moveable) {
+                    var x = x1 + event.clientX - x0;
+                    var y = y1 + event.clientY - y0;
+
+                    if (x < r[0])
+                        popUpObj.style.left = 0 + "px";
+                    else if ((x + parseInt(popUpWidth)) > r[1])
+                        popUpObj.style.left = r[1] - parseInt(popUpWidth) + "px";
+                    else
+                        popUpObj.style.left = x1 + event.clientX - x0 + "px";
+
+
+                    if (y < r[2])
+                        popUpObj.style.top = 0 + "px";
+                    else if ((y + parseInt(popUpHeight)) > r[3])
+                        popUpObj.style.top = r[3] - parseInt(popUpHeight) + "px";
+                    else
+                        popUpObj.style.top = y1 + event.clientY - y0 + "px";
+
+                }
+            };
+
+            document.body.appendChild(popUpObj);
+        }
+        //Must after OuterDiv has been added to DOM
+
+        popUpObj.innerHTML = '<div id="ratingFactorOutMostDiv" style="width:' + outerDivWidth + '; height:' + outerDivHeight + ';"><div id="ratingFactorShadowDiv" style="width:' + shadowDivWidth + ';height:' + shadowDivHeight + ';"></div><div id="ratingFactorContentDiv" style="width:' + contentDivWidth + ';height:' + contentDivheight + ';"><div class="ratingFactorBorderLine"><div class="ratingFactorBorderDiv"><div><div style="background:#FFFFFF; padding-left: 20px; float: left;width:200px;"><div style="height: 20px;"></div><div class="ratingFactorTitle">Rating Factors</div></div><div style="background: #FFFFFF; padding-right: 10px;float: right;width:17px;"><div style="height: 10px;"></div>' + closeBtnHTML + '</div></div><div class="ratingFactorBorderDivContent"><div style="height: 20px; background:#FFFFFF;"></div><div id="mdcRatingFactorsContent">' + ratingFactorGridContent + '</div></div></div></div></div></div>';
+        $('#ratingFactorOutMostDiv').bgiframe();
+        popUpObj.style.display = "";
+        document.getElementById('mdcRatingFactorsGridPopUpDiv').focus();
+
+        var contentDivHeight = $('.ratingFactorBorderDiv').height();
+        $('#ratingFactorContentDiv').height(contentDivHeight);
+        var shadowDivHeigth = contentDivHeight + 30;
+        $('#ratingFactorShadowDiv').height(shadowDivHeigth);
+        $('#ratingFactorOutMostDiv').height(shadowDivHeigth);
+        $('#mdcRatingFactorsGridPopUpDivpopUpObj').height(shadowDivHeigth);
+        $('#mdcRatingFactorsGridPopUpDiv').height(shadowDivHeigth);
+    },
+    saveAsImage: function (actionUrl) {
+        //convert image src to abusolute path
+        //var urlPrefix = document.location.href.match(/http(s)?:\/\/[^\/]+/ig)[0];
+        //$("#mdcRatingFactorsGridPopUpDiv img").each(function() {
+        //    var src = $(this).attr("src");
+        //    if (src && src.indexOf("/") == 0) {
+        //        $(this).attr("src", urlPrefix + src);
+        //    }
+        //});
+
+        $('#mdcRFExportFootNote').mdcShow();
+        var originalGrid = $('#ratingFactorContentDiv').html(),
+            closeButton = $('.ratingFactorBorderDiv>div:first>div:last').html(),
+            saveImageButton = $('.ratingFactorBorderDiv .DilogButton').html(),
+            printGrid = originalGrid.replace(closeButton, '').replace(saveImageButton, ''),
+            submitData = { 'grid': printGrid };
+        $('#mdcRFExportFootNote').mdcHide();
+
+        $.util.submitForm(actionUrl, submitData);
+        var orgid = $.atag.getOrgId("");
+
+        mdcCleanUpProps("WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6;WT.pn_sku;WT.z_previouspage;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r");
+        dcsMultiTrack({
+            'DCS.dcsuri': '/ATAG_Overview/CreditOpinion/RatingFactorGrid/SaveAsImage',
+            'WT.ti': 'Widget: Credit Opinion',
+            'WT.dl': 99,
+            'WT.pn_id': orgid,
+            'WT.z_referringsource': 'ATAG_OV_CO_RFR~SaveAsImage~' + orgid
+        });
+        mdcCleanUpProps("DCS.dcsuri;WT.ti;WT.dl;WT.pn_id;WT.z_referringsource");
+    },
+    scorecardEntry: function (webtrendsPrefix) {
+        var orgId = $.atag.getOrgId("");
+        dcsMultiTrack({
+            'WT.dl': 99,
+            'WT.z_referringsource': webtrendsPrefix + '~' + orgId + '~BankScoreCard',
+            'WT.pn_id': orgId
+        });
+        mdcCleanUpProps("WT.z_referringsource");
+        if (webtrendsPrefix !== 'ATAG_Bnr') {
+            var win = window.open("/bank-scorecard/" + orgId, "_blank");
+            win.focus();
+        }
+    }
+};
+
+jQuery.mdc.CrossLanguageWarning = {
+    hoverEnter: function () {
+        if ($(this).hasClass('mdcBtnSelected')) return; $(this).addClass('mdcBtnHover');
+    },
+    hoverLeave: function (obj) {
+        if ($(this).hasClass('mdcBtnSelected')) return; $(this).removeClass('mdcBtnHover');
+    },
+    mousedown: function () {
+        $(this).removeClass('mdcBtnHover');
+        $(this).addClass('mdcBtnSelected');
+    },
+    IsFile: function (obj) {
+        var theUrl = $(obj).attr("href");
+        var dotPos = theUrl.lastIndexOf(".");
+        if (dotPos != -1) {
+            var suffix = theUrl.substring(dotPos + 1).toLowerCase();
+            if (suffix == "doc" || suffix == "docx" || suffix == "pdf" || suffix == "xls" || suffix == "xlsx" || suffix == "ppt" || suffix == "pptx" ||
+                suffix == "jpg" || suffix == "bmp" || suffix == "gif" || suffix == "tiff" || suffix == "txt")
+                return true;
+        }
+        return false;
+    },
+    IsNewWindow: function (obj) {
+        var theTarget = $(obj).attr("target");
+        if ('_blank' == theTarget)
+            return true;
+        else
+            return false;
+    },
+    OpenDialog: function () {
+        tb_show("", "#TB_inline?inlineId=mdcCrossLanguageWarning&width=480&modal=true&TB_modal_class=CrossLang_TB_modal"); //
+        $("#TB_overlay").css({ 'background-color': '#ffffff', 'filter': 'alpha(opacity=50)', '-moz-opacity': '0.5', 'opacity': '0.5' });
+        $("#TB_window").css({ 'border': '0px solid #cccccc' });
+        $("#TB_window").css({ 'background-color': 'transparent' });
+        $("#TB_ajaxContent").css({ "padding": "0px 0px 0px 0px" });
+    },
+    haveMultiLanguage: function (herfValue) {
+        if (herfValue.contains('lang=') || herfValue.contains('cy=')) {
+            return true;
+        }
+        return false;
+    },
+    CrossClick: function (obj, theUrl) {
+        $(obj).attr("href", "javascript:void(0)");
+        $(obj).attr("target", "");
+        $('#clwUrl').val(theUrl);
+        $('#clwWindow').val($(obj).attr("crossTarget"));
+
+        if ($.mdc.CrossLanguageWarning.ReadCookie("rememberCrossLanguage") == "Yes")
+            $.mdc.CrossLanguageWarning.ToUrl();
+        else
+            $.mdc.CrossLanguageWarning.OpenDialog();
+    },
+
+    IsUSSite: function () {
+        var regionVal = $('#clwRegion').attr('regionVal');
+        if (regionVal != "" && regionVal != "en")
+            return false;
+        else
+            return true;
+    },
+
+    CancelCross: function () {
+        if ($('#rememberCrossLanguage').is(":checked")) {
+            $.mdc.CrossLanguageWarning.WriteCookie("rememberCrossLanguage", "Yes");
+        }
+        if ($('#clwId').val() == "typeAhead")
+            $('#mdcSearch>div>input').blur();
+        $.mdc.CrossLanguageWarning.ClearHiddenVal();
+        tb_remove();
+    },
+
+    BtnCrossClick: function (obj, idVal) {
+        $('#clwId').val(idVal);
+        if ($.mdc.CrossLanguageWarning.ReadCookie("rememberCrossLanguage") == "Yes") {
+            $(obj).click();
+        }
+        else
+            $.mdc.CrossLanguageWarning.OpenDialog();
+    },
+
+    ToUrl: function () {
+        if ($('#rememberCrossLanguage').is(":checked")) {
+            $.mdc.CrossLanguageWarning.WriteCookie("rememberCrossLanguage", "Yes");
+        }
+        var idVal = $('#clwId').val();
+        if (idVal == "findAnalystBtn") {
+            $('#findAnalystBtn').click();
+        }
+        else if (idVal == "searchBarLink") {
+            $('#searchBarLink').click();
+        }
+        else if (idVal == "typeAhead") {
+            $('tr.typeAheadCrossLink').click();
+        }
+        else {
+            if ('_blank' == $('#clwWindow').val()) {
+                window.open($('#clwUrl').val());
+                $.mdc.CrossLanguageWarning.ClearHiddenVal();
+            }
+            else
+                window.location.href = $('#clwUrl').val();
+        }
+    },
+
+    ClearHiddenVal: function () {
+        $('#clwUrl').val("");
+        $('#clwWindow').val("");
+        $('#clwId').val("");
+        $('#rememberCrossLanguage').attr("checked", false);
+    },
+
+    ReadCookie: function (theCookieName) {
+        var aCookie = "" + document.cookie;
+        var aFirstIndex = aCookie.indexOf(theCookieName + "=");
+        if (aFirstIndex == -1 || theCookieName == "")
+            return "";
+        var aEndIndex = aCookie.indexOf(';', aFirstIndex);
+        if (aEndIndex == -1)
+            aEndIndex = aCookie.length;
+        return aCookie.substring(aFirstIndex + theCookieName.length + 1, aEndIndex);
+    },
+
+    WriteCookie: function (theCookieName, theCookieValue) {
+        var aExpireTime = new Date(new Date().getTime() + 1000 * 60 * 30);
+        document.cookie = theCookieName + "=" + theCookieValue + ";expires=" + aExpireTime.toGMTString() + ";path=/;secure";
+    }
+};
+
+var opentimeout = 400;
+var closetimeout = 600;
+var mdcTimer = 0;
+var mdcMenuLayer = 0;
+
+function mdcMenuOpen() {
+    mdcMenuCancelTimer();
+    if (mdcMenuLayer) {
+        if ($(this).find(mdcMenuLayer).length == 0) {
+            mdcMenuLayer.css('visibility', 'hidden');
+            $("#mdcMenu > li").removeClass("hover");
+        }
+    }
+
+    $(this).addClass("hover");
+
+    if ($(this).find('.mdcMenuLayer').eq(0).css('visibility') == 'hidden') {
+        mdcMenuLayer = $(this).find('.mdcMenuLayer').eq(0).css('visibility', 'visible');
+
+    } else {
+        mdcMenuLayer = $(this).find('.mdcMenuLayer').eq(0).css('visibility', 'hidden');
+        $("#mdcMenu > li").removeClass("hover");
+    }
+}
+
+function mdcMenuClose() {
+    mdcMenuCancelTimer();
+    if (mdcMenuLayer) {
+        mdcMenuLayer.css('visibility', 'hidden');
+        $("#mdcMenu > li").removeClass("hover");
+    }
+
+}
+
+function mdcTopMenuClick(alinkId) {
+    var sTopMenSubId = "#topMenuSub" + alinkId;
+    var sTopMenParentId = "#topMenuParent" + alinkId;
+    var aTop = 35 + "px";
+    var aLeft = $(sTopMenParentId).position().left -2 + "px";
+    var swidth = $(sTopMenParentId).width() <= 97 ? 129 : ($(sTopMenParentId).width() + 46);
+    var swidths = swidth + 'px';
+    $(sTopMenSubId).css({
+        left: aLeft, top: "0px", width:swidths,'padding-top': '10px'});
+    if ($(sTopMenSubId).hasClass('mdcHide')) {
+        $(sTopMenSubId).removeClass("mdcHide");
+         $('.topMenuarrow').css('background-position', '-36px 0');
+    }
+    else {
+        $(sTopMenSubId).addClass("mdcHide");
+        $('.topMenuarrow').css('background-position', '0 0');
+    }
+}
+
+function mdcMenuOpenTimer() {
+    mdcMenuCancelTimer();
+    var func = function (li) { return function () { mdcMenuOpen(li) } }(this);
+    mdcTimer = window.setTimeout(func, opentimeout);
+}
+
+function mdcMenuCloseTimer() {
+    mdcMenuCancelTimer();
+    mdcTimer = window.setTimeout(mdcMenuClose, closetimeout);
+}
+
+function mdcMenuCancelTimer() {
+    if (mdcTimer) {
+        window.clearTimeout(mdcTimer);
+        mdcTimer = null;
+    }
+}
+
+function isIE6() {
+    if (typeof navigator.userAgent.split(";")[1] == "undefined") return false;
+    return navigator.userAgent.split(";")[1].toLowerCase().indexOf("msie 6.0") == "-1" ? false : true;
+}
+
+function isIE7() {
+    if (typeof navigator.userAgent.split(";")[1] == undefined) return false;
+    return navigator.userAgent.split(";")[1].toLowerCase().indexOf("msie 7.0") == "-1" ? false : true;
+}
+
+jQuery.mdc.CouponExpirationNotify = {
+    PopUp: function () {
+        if ($('#mdcCouponNotifyOutside').length > 0) {
+            $('#mdcCouponNotifyOutside').height($('#mdcCouponNotifyInside').outerHeight());
+            $('#mdcCouponNotifyInside, #mdcCouponNotifyOutside').toggleClass('mdcHide').center();
+        }
+    }
+};
+
+function TryNewLink(captchUrl) {
+    $.post(captchUrl, function (data) {
+        if (!data) return;
+        $('.captchaImage').attr(data);
+        $('.hiddenCaptchaDiv input:first').val(data.code);
+    });
+};
+
+function selfRegUserActivaitionMsg() {
+    var msgBox = $("#mdcRegActivationFlyoutMsgBox");
+    if (msgBox.hasClass("mdcHide"))
+        return;
+    setInterval(function () { msgBox.addClass("mdcHide"); }, 3000);
+}
+
+(function ($, root, undefined) {
+    var getEndecaIdFromIdustryLandingPageUrl = function (url) {
+        // please refer to the logic in the redirect url http module
+        var industryLandingPageUrlPattern = /^(\/(?:researchandratings)\/[^\/_]+(?:\/[0-9]+)?)(\/[^\/_]+)(\/[^_\/]*[^_\/0-9][^_\/]*)?(\/[0-9]+.*)$/ig,
+			endecaIdPartPattern = /^\/\d+\/(?:(?:\d+\s+)*)(\d+)\/.+/ig,
+			urlMatch = industryLandingPageUrlPattern.exec(url),
+			queryStringPart = urlMatch ? urlMatch[4] : "", // e.g "/005000/4294966622 4294965746/4294967230/0/0/-/0/-/-/-/-/-/-/-/en/global/pdf/-/rra"
+			endecaIdMatch = endecaIdPartPattern.exec(queryStringPart),
+			endecaId = endecaIdMatch ? endecaIdMatch[1] : "";
+        return endecaId;
+    },
+	getDimensionIdFromLink = function (ele) {
+	    var $this = $(ele),
+			href = $this.attr("href"),
+			endecaId = $this.data("dimension-id");
+	    if (!endecaId || endecaId === "-1") {
+	        endecaId = getEndecaIdFromIdustryLandingPageUrl(href);
+	    }
+	    return endecaId;
+	},
+
+    removeAllSpace = function (key) {
+        while (key.contains(" ")) {
+            key = key.replace(" ", "%20");
+        }
+
+        return key;
+    },
+
+    getEndecaIdArrayFromIdustryLandingPageUrl = function (url) {
+        //var url = window.location.pathname;
+        if (url.contains(window.location.host)) {
+            url = url.substring(url.indexOf(window.location.host) + window.location.host.length, url.length);
+        }
+
+        var res;
+        if (url.contains(".aspx")) {
+            url = window.location.search;
+            var idx1 = url.indexOf("&rd="),
+                endecaIds1 = url.substring(idx1 + 4, url.indexOf("&", idx1 + 4));
+            res = endecaIds1;
+        } else {
+            var industryLandingPageUrlPattern = /^(\/(?:researchandratings)\/[^\/_]+(?:\/[0-9]+)?)(\/[^\/_]+)(\/[^_\/]*[^_\/0-9][^_\/]*)?(\/[0-9]+.*)$/ig,
+                urlMatch = industryLandingPageUrlPattern.exec(url),
+                queryStringPart = urlMatch ? urlMatch[4] : "", // e.g "/005000/4294966622 4294965746/4294967230/0/0/-/0/-/-/-/-/-/-/-/en/global/pdf/-/rra"
+                idx = queryStringPart.indexOf("/", 1),
+                endecaIds = queryStringPart.substring(idx + 1, queryStringPart.indexOf("/", idx + 1));
+            res = endecaIds;
+        }
+
+        res = res.replace(/%20/g, "~");
+        res = res.replace(/ /g, "~");
+        res = res.toLowerCase().replace(/%7c/g, "~");
+        res = res.replace(/\|/g, "~");
+
+        return res;
+    },
+	isRrLandingPage = function (url) {
+	    if (url.contains("researchandratings")) {
+	        return true;
+	    }
+
+	    if (url.contains(".aspx")) {
+	        var idx = url.lastIndexOf("/");
+	        var pageName = url.substring(idx + 1, url.indexOf(".aspx"));
+	        if (pageName.indexOf("rr") == 0) {
+	            return true;
+	        }
+	    }
+
+	    return false;
+	},
+	getPnId = function (url) {
+	    var res = "";
+	    if (isRrLandingPage(url)) {
+	        res = getEndecaIdArrayFromIdustryLandingPageUrl(url);
+	        while (res.contains("+")) {
+	            res = res.replace("+", "~");
+	        }
+	    }
+	    if (!res) {
+	        res = window.location.href.substring(0, 64);
+	    }
+	    return res;
+	},
+	getSubTitle = function (subTitle) {
+	    if (isRrLandingPage(window.location.href) && !subTitle) {
+	        return $('head>meta[name="WT.cg_n"]').attr("content");
+	    }
+
+	    switch (subTitle.toLowerCase()) {
+	        case "market segment":
+	            return "RR_MS";
+	        case "region":
+	            return "RR_REG";
+	        case "research type":
+	            return "RR_TYP";
+	        case "political economic groups":
+	            return "RR_PEG";
+	        default:
+	            return "RR";
+	    }
+	},
+
+	getTrueRefferingSourceAndStore = function (curRS, href, reset) {
+	    var keyFirstName = "ILPWS:",
+	        key = keyFirstName + removeAllSpace(window.location.pathname) + removeAllSpace(window.location.search);
+	    key = key.replace(/%7C/g, '|');
+	    var old = store.get(key);
+	    if (old && !reset) {
+	        if (curRS) {
+	            curRS = old + ">" + curRS;
+	        } else {
+	            curRS = old;
+	        }
+	    }
+	    if (href.contains(window.location.host)) {
+	        href = href.substring(href.indexOf(window.location.host) + window.location.host.length, href.length);
+	    }
+	    key = keyFirstName + removeAllSpace(href);
+	    store.set(key, curRS);
+	    return curRS;
+	},
+
+	getReferringSource = function (ele, prefix, subTitle, href, reset) {
+	    var dimensionId = getDimensionIdFromLink(ele);
+	    if (!dimensionId) {
+	        dimensionId = "0";
+	    }
+	    var res = prefix + "~" + getSubTitle(subTitle) + "~" + dimensionId;
+	    res = getTrueRefferingSourceAndStore(res, href, reset);
+	    return res;
+	},
+
+	cleanUpCgAndReferringSourceMeta = function () {
+	    if (root.mdcCleanUpProps) {
+	        root.mdcCleanUpProps("WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;WT.z_referringsource;");
+	    }
+	},
+
+    cleanUpPnidAndReferringSourceMeta = function () {
+        if (root.mdcCleanUpProps) {
+            root.mdcCleanUpProps("WT.z_referringsource;WT.pn_id;");
+        }
+    },
+
+    getUserId = function () {
+        return $('head>meta[name="WT.dcsvid"]').attr("content");
+    },
+
+	initWebTrendsForProductsSolutionsNavigation = function () {
+		$("#mdcProductsSolutionsTab>div.mdcMenuLayer").on("click", "a:contains('QRATE')", function () {
+			var tracks = {
+				"WT.ti": "Link: GNV QRATE",
+				"WT.z_referringsource": "GNV~PS~AP~QRATE",
+				"WT.dl": 99
+			};
+			
+			root.mdcCleanUpProps("WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;cg_sec6;WT.pn_sku;WT.pn_id;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r");
+			root.dcsMultiTrack(tracks);
+			root.mdcCleanUpProps("WT.z_referringsource;WT.ti;WT.dl");
+		});
+		$("#mdcProductsSolutionsTab>div.mdcMenuLayer").on("click", "a:contains('Municipal Financial Ratio Analysis')", function () {
+		    var tracks = {
+		        "WT.ti": "Link: GNV MFRA",
+		        "WT.z_referringsource": "GNV~PS~AP~MFRA",
+		        "WT.dl": 99
+		    };
+
+		    root.mdcCleanUpProps("WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;cg_sec6;WT.pn_sku;WT.pn_id;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r");
+		    root.dcsMultiTrack(tracks);
+		    root.mdcCleanUpProps("WT.z_referringsource;WT.ti;WT.dl");
+		});
+	},
+
+	initWebTrendsForResearchRatingsNavigation = function () {
+	    $("#mdcResearchRatingsTab>div.mdcMenuLayer").on("click", "a", function () {
+	        var $this = $(this);
+	        var location = root.location;
+	        var engName = $this.data("eng-name");
+	        var href = $this.attr("href");
+
+	        var getNavigationAreaDimensionLink = function () {
+	            return $this.parent().parent().find(">li:first>a");
+	        };
+	        var dimensionLink = getNavigationAreaDimensionLink(),
+		        isDimensionLinkClicked = $this.parent().hasClass("SubTitle"),
+		        navigationAreaName = dimensionLink.data("eng-name"),
+		        navigationAreaAbbr = dimensionLink.data("dimension-abbr"),
+		        userId = getUserId(),
+		        referringSource = getReferringSource($(this), "GNV", navigationAreaName, href, true),
+		        pnId = getPnId(location.href),
+
+		        ti = "Link: GNV " + engName;
+
+	        var tracks = {
+	            "dcssip": location.hostname,
+	            "DCS.dcsvid": userId,
+	            "DCS.dcsuri": href,
+	            "WT.ti": ti,
+	            "WT.es": location.href,
+	            "WT.nv": navigationAreaName,
+	            "WT.z_referringsource": referringSource,
+	            "WT.dl": 99,
+	            "WT.pn_id": pnId,
+	            "WT.pn_sku": ""
+	        };
+
+	        if (navigationAreaAbbr !== '') {
+	            cleanUpCgAndReferringSourceMeta();
+	            root.dcsMultiTrack(tracks);
+	            cleanUpPnidAndReferringSourceMeta();
+	        }
+	    });
+	},
+
+    initWebTrendsForMdcTopNavigation = function () {
+        $("#mdcResearchRatingsTab").on("click", "a.TopMenu", function () {
+            var $this = $(this),
+                location = root.location,
+                href = $this.attr("href"),
+                userId = getUserId(),
+                pnId = getPnId(location.href),
+                text = $.trim($this.text()),
+                ti = "Link: GNV " + text,
+                referringSource = getReferringSource($(this), "GNV", text, href, true);
+            var tracks = {
+                "dcssip": location.hostname,
+                "DCS.dcsvid": userId,
+                "DCS.dcsuri": href,
+                "WT.ti": ti,
+                "WT.es": location.href,
+                "WT.nv": text,
+                "WT.z_referringsource": referringSource,
+                "WT.dl": 99,
+                "WT.pn_id": pnId,
+                "WT.pn_sku": ""
+            };
+
+            cleanUpCgAndReferringSourceMeta();
+            root.dcsMultiTrack(tracks);
+            cleanUpPnidAndReferringSourceMeta();
+        });
+    },
+
+	init = function () {
+		initWebTrendsForProductsSolutionsNavigation();
+	    initWebTrendsForResearchRatingsNavigation();
+	    initWebTrendsForMdcTopNavigation();
+	    if (!$.mdc.ilp) {
+	        $.mdc.ilp = {};
+	    }
+	    $.extend($.mdc.ilp, {
+	        getEndecaIdArrayFromIdustryLandingPageUrl: getEndecaIdArrayFromIdustryLandingPageUrl,
+	        isRrLandingPage: isRrLandingPage,
+	        getPnId: getPnId,
+	        getReferringSource: getReferringSource,
+	        getTrueRefferingSourceAndStore: getTrueRefferingSourceAndStore
+	    });
+	},
+
+	InitExtend = function () {
+	    if (!$.mdc.ilp) {
+	        $.mdc.ilp = {};
+	    }
+	    $.extend($.mdc.ilp, {
+	        getEndecaIdArrayFromIdustryLandingPageUrl: getEndecaIdArrayFromIdustryLandingPageUrl,
+	        isRrLandingPage: isRrLandingPage,
+	        getPnId: getPnId,
+	        getReferringSource: getReferringSource,
+	        getTrueRefferingSourceAndStore: getTrueRefferingSourceAndStore,
+	        getSubTitle: getSubTitle,
+	        removeAllSpace: removeAllSpace
+	    });
+	};
+
+    InitExtend();
+
+    $(init);
+
+}(jQuery, window));
+
+//search result page related.
+(function ($, root, undefined) {
+    "use strict";
+
+    var SEARCH_RESULT_PAGE_PATH = '/page/search.aspx',
+		isSearchResultPageUrl = function (url) {
+		    var u = root.URI(url),
+				path = u.path(),
+				result = path && (path.toLowerCase() === SEARCH_RESULT_PAGE_PATH);
+
+		    return result;
+		},
+		isInSearchResultPage = (function () {
+		    return root.location && isSearchResultPageUrl(root.location.href);
+		}()),
+
+		getTaxonomyIdsFromSearchResultPageUrl = function (url) {
+		    if (!isSearchResultPageUrl(url)) {
+		        return [];
+		    }
+
+		    var u = root.URI(url),
+				queryStrings = u.search(true),
+				taxonomyIdString = queryStrings['rd'],
+				taxonomyIds = taxonomyIdString ? taxonomyIdString.split('|') : ['0'];
+
+		    return taxonomyIds;
+		},
+		currentPageTaxonomyIds = (function () {
+		    if (!isInSearchResultPage) {
+		        return undefined;
+		    }
+
+		    return getTaxonomyIdsFromSearchResultPageUrl(root.location.href);
+		}()),
+		getCurrentPageTaxonomyIds = function () {
+		    return currentPageTaxonomyIds;
+		},
+		hasTaxonomySelected = (function () {
+		    if (!currentPageTaxonomyIds) {
+		        return false;
+		    }
+
+		    var result = currentPageTaxonomyIds.length > 0 && currentPageTaxonomyIds[0] !== '0';
+		    return result;
+		}()),
+
+		serializeTaxonomyIds = function (taxonomyIds) {
+		    return (taxonomyIds && taxonomyIds.length) ? taxonomyIds.join('-') : '0'; // '0' is for no refine by
+		},
+
+		//referring source
+		getReferringSourceKey = function (taxonomyIds) {
+		    var appendix = serializeTaxonomyIds(taxonomyIds),
+				key = "SRPWS:" + appendix;
+
+		    return key;
+		},
+		getCurrentPageReferringSource = function () {
+		    if (!isInSearchResultPage) {
+		        //TODO: direct access
+		        return undefined;
+		    }
+
+		    var referringSourceKey = getReferringSourceKey(currentPageTaxonomyIds),
+				storedReferringSource = store.get(referringSourceKey),
+				result = storedReferringSource ? storedReferringSource : "";
+		    if (!result) {
+		        result = getSearchResultRefferingSourceIfUnidentifiableSource();
+		    }
+		    return result;
+		},
+
+        getSearchResultRefferingSourceIfUnidentifiableSource = function () {
+            var trackPath = "";
+            $("#mdcRefineBreadcrums li[data-dimension-id]").each(function (index, element) {
+                var dimId = $(element).attr("data-dimension-id");
+                var dimName = $(element).parent().parent().find('h3').attr('eng-name');
+                var dimType = $.mdc.ilp.getSubTitle(dimName);
+                if (trackPath != "") {
+                    trackPath += ">";
+                }
+                trackPath += "DSR~" + dimType + "~" + dimId;
+            });
+            if (trackPath == "") {
+                trackPath = "DSR";
+            }
+            return trackPath;
+        },
+
+		setSearchResultPageReferringSource = function (taxonomyIds, referringSource) {
+		    var key = getReferringSourceKey(taxonomyIds);
+		    store.set(key, referringSource);
+		},
+	    getDimentionSectionAbbreviation = function (dimensionName) {
+	        if (dimensionName == null)
+	            return "RR";
+
+	        switch (dimensionName.toLowerCase()) {
+	            case "market segment":
+	                return "RR_MS";
+	            case "region":
+	                return "RR_REG";
+	            case "research type":
+	                return "RR_TYP";
+	            case "political/economic groups":
+	                return "RR_PEG";
+	            default:
+	                return "RR";
+	        }
+	    },
+	    getlastDimensionId = function (dimensionIds, preReferringSource) {
+	        var list = dimensionIds.toString().split(" ");
+	        for (var i = 0; i < list.length; i++) {
+
+	            if (preReferringSource.indexOf(list[i]) === -1) {
+	                return list[i];
+	            }
+	        }
+	        return "";
+	    },
+
+        getAndSetRefineByReferringSource = function (link) {
+            var currentPageReferringSource = getCurrentPageReferringSource(),
+				newPageUrl = link.attr("href"),
+				dimensionId = getlastDimensionId(link.data("dimensionid"), currentPageReferringSource),
+			    dimensionName = link.parent().parent().prev().text(),
+				dimentionSectionAbbreviation = getDimentionSectionAbbreviation(dimensionName),
+				newPageTaxonomyIds = getTaxonomyIdsFromSearchResultPageUrl(newPageUrl),
+				newPageReferringSource = currentPageReferringSource + ">RFN~" + dimentionSectionAbbreviation + "~" + dimensionId;
+
+            setSearchResultPageReferringSource(newPageTaxonomyIds, newPageReferringSource);
+
+            return newPageReferringSource;
+        },
+
+        getAndSetRemoveRefineByReferringSourceOfSearchResultPage = function (removeUrl, dimensionIds) {
+            var currentPageReferringSource = getCurrentPageReferringSource();
+            if (currentPageReferringSource) {
+                for (var i = 0; i < dimensionIds.length; i++) {
+                    var dimensionid = dimensionIds[i];
+                    currentPageReferringSource = currentPageReferringSource.replace(dimensionid, "REM");
+                }
+            }
+            var newPageTaxonomyIds = getTaxonomyIdsFromSearchResultPageUrl(removeUrl);
+            setSearchResultPageReferringSource(newPageTaxonomyIds, currentPageReferringSource);
+            return currentPageReferringSource;
+        },
+
+    getAndSetSearchWithinReferringSource = function () {
+        var currentPageReferringSource = getCurrentPageReferringSource(),
+            newPageReferringSource = currentPageReferringSource + ">SWI";
+
+        setSearchResultPageReferringSource(currentPageTaxonomyIds, newPageReferringSource);
+
+        return newPageReferringSource;
+    },
+
+		//pn_id
+		getCurrentPagePnId = function () {
+		    var result,
+				getPnIdForSrpPage = function () {
+				    var pnId = 'SRP';
+				    if (hasTaxonomySelected) {
+				        pnId += '~' + currentPageTaxonomyIds.join('~');
+				    }
+				    return pnId;
+				},
+				getPnIdForNonSrpPage = function () {
+				    return root.location.pathname.substr(0, 64);
+				};
+
+		    result = isInSearchResultPage ? getPnIdForSrpPage() : getPnIdForNonSrpPage();
+		    return result;
+		},
+
+		//initial load
+		INITIAL_LOAD_STORAGE_KEY = 'SRPWS:Initial-Load',
+		setInitialLoad = function () {
+		    if (!isInSearchResultPage) {
+		        return;
+		    }
+
+		    var currentPageTaxonomyIdsSerialized = serializeTaxonomyIds(currentPageTaxonomyIds),
+				lastVisitedPageTaxonomyIdsSerialized = store.get(INITIAL_LOAD_STORAGE_KEY),
+				isInitialLoad = currentPageTaxonomyIdsSerialized !== lastVisitedPageTaxonomyIdsSerialized,
+				setMeta = function () {
+				    var sec4Meta = $('head>meta[name="WT.cg_sec4"]'),
+						metaContent = isInitialLoad ? "Initial Load" : "";
+
+				    if (sec4Meta.length > 0) {
+				        sec4Meta.attr("content", metaContent);
+				    } else {
+				        $('head').append('<meta name="WT.cg_sec4" content="' + metaContent + '" />');
+				    }
+				};
+
+		    setMeta();
+		    store.set(INITIAL_LOAD_STORAGE_KEY, currentPageTaxonomyIdsSerialized);
+		},
+
+		doExport = function () {
+		    if (!$.mdc.srp) {
+		        $.mdc.srp = {};
+		    }
+
+		    $.extend($.mdc.srp, {
+		        abbreviationFor: "SearchResultPage",
+		        isSearchResultPageUrl: isSearchResultPageUrl,
+		        isInSearchResultPage: isInSearchResultPage,
+		        getCurrentPageTaxonomyIds: getCurrentPageTaxonomyIds,
+		        hasTaxonomySelected: hasTaxonomySelected,
+		        getTaxonomyIdsFromSearchResultPageUrl: getTaxonomyIdsFromSearchResultPageUrl,
+		        getCurrentPageReferringSource: getCurrentPageReferringSource,
+		        setSearchResultPageReferringSource: setSearchResultPageReferringSource,
+		        getAndSetRefineByReferringSource: getAndSetRefineByReferringSource,
+		        getAndSetSearchWithinReferringSource: getAndSetSearchWithinReferringSource,
+		        getCurrentPagePnId: getCurrentPagePnId,
+		        getAndSetRemoveRefineByReferringSourceOfSearchResultPage: getAndSetRemoveRefineByReferringSourceOfSearchResultPage,
+		        setInitialLoad: setInitialLoad
+		    });
+		};
+
+    doExport();
+}(jQuery, this));
+
+(function ($, root, undefined) {
+    var reloadSavedSearchReferringSource = function (link) {
+        var id = null;
+        var href = link.attr("href");
+        var m = /.rd=([^&]+)/.exec(href);
+        if (m != null && m.length > 0) {
+            var ids = m[1];
+            //id = ids.split(/[\s|\+]/);
+			id = ids.toLowerCase().replace(/%7c/g, "|").split("|");
+        }
+
+        var referringSource = link.data("wtreferringsource");
+        if (referringSource == "") {
+            referringSource = "DSR";
+        }
+
+        $.mdc.srp.setSearchResultPageReferringSource(id, referringSource);
+    },
+     initWebTrendsForSavedSearch = function () {
+         $("div.mdcSaveSearchTileContent a").bind("click", function () {
+             reloadSavedSearchReferringSource($(this));
+         });
+
+         $("div.mdcSaveSearchPopUpTileContent a").bind("click", function () {
+             reloadSavedSearchReferringSource($(this));
+         });
+     };
+
+    $(initWebTrendsForSavedSearch);
+}(jQuery, this));
+
+// 404 page related
+(function ($, root, undefined) {
+    var PAGE_404_URL = '/404.aspx',
+		PREVIOUS_PAGE_STORE_KEY = 'previous-404-page',
+		isIn404Page = (root.location.pathname === PAGE_404_URL),
+		jumpTo404Page = function (oldUrl) {
+		    var url = PAGE_404_URL + '?oldUrl=' + $.mdc.encodeUrl(oldUrl);
+		    root.location.href = url;
+		},
+		jump = function () {
+		    store.set(PREVIOUS_PAGE_STORE_KEY, root.document.referrer);
+		    jumpTo404Page(root.location.href);
+		},
+		getPreviousPage = function () {
+		    var rslt = store.get(PREVIOUS_PAGE_STORE_KEY);
+		    if (!rslt) {
+		        rslt = root.document.referrer;
+		    }
+
+		    return rslt;
+		},
+		setPreviousPageMetaContent = function (content) {
+		    var meta = $('head>meta[name="WT.z_previouspage"]');
+
+		    if (meta.length > 0) {
+		        meta.attr("content", content);
+		    } else {
+		        $('head').append('<meta name="WT.z_previouspage" content="' + content + '" />');
+		    }
+		},
+		set404PageWebTrends = function () {
+		    var previousPage = getPreviousPage();
+		    setPreviousPageMetaContent(previousPage);
+		},
+		doExport = function () {
+		    if (!$.mdc.page404) {
+		        $.mdc.page404 = {};
+		    }
+
+		    $.extend($.mdc.page404, {
+		        "jump": jump,
+		        "isIn404Page": isIn404Page,
+		        "set404PageWebTrends": set404PageWebTrends
+		    });
+		};
+
+    doExport();
+}(jQuery, this));
+
+/*********************************************************************************************************
+* getEntryRefferingSourceAndStore()
+**********************************************************************************************************
+*/
+(function ($) {
+
+    var getEntryRefferingSourceAndStore = function (theTarget, theEntry) {
+        var keytName = theTarget + "-Entry-Step",
+            refSource = theTarget + "~" + theEntry;
+        store.set(keytName, refSource);
+        storeTheEntryClickEvent(1, theTarget);
+        return refSource;
+    },
+
+    storeEntryPreviousPage = function (theTarget, theEntry) {
+        var previousKey = theTarget + "-Entry-Previous",
+            previousPageValue = theEntry;
+        store.set(previousKey, previousPageValue);
+        return previousPageValue;
+    },
+
+    getStoredEntryPreviousPage = function (theTarget) {
+        var keyName = theTarget + "-Entry-Previous",
+            previousPageValue = store.get(keyName);
+        return previousPageValue;
+    },
+
+    clearPreviousPageCache = function (theTarget) {
+        var keyName = theTarget + "-Entry-Previous";
+        store.set(keyName, "");
+    },
+
+    clearEntryEventCache = function (theTarget) {
+        storeTheEntryClickEvent(0, theTarget);
+    },
+
+    getStoredEntryRefferingSource = function (theTarget) {
+        var keytName = theTarget + "-Entry-Step",
+            refSource = store.get(keytName);
+        return refSource;
+    },
+
+    storeTheEntryClickEvent = function (clicked, theTarget) {
+        var keytName = theTarget + "-Entry-Click-Event",
+            event = clicked;
+        store.set(keytName, event);
+    },
+
+    getTheEntryClickEvent = function (theTarget) {
+        var keytName = theTarget + "-Entry-Click-Event",
+        event = store.get(keytName);
+        return event;
+    },
+
+    checkEntryRefferingSourceAtInit = function (theTarget) {
+        var event = getTheEntryClickEvent(theTarget);
+        if (event == 1) {
+            storeTheEntryClickEvent(0, theTarget);
+        } else {
+            getEntryRefferingSourceAndStore(theTarget, "DIR");
+            storeTheEntryClickEvent(0, theTarget);
+        }
+    },
+
+    doExport = function () {
+        if (!$.mdc.bfm) {
+            $.mdc.bfm = {};
+        }
+
+        if (!$.mdc.bfm.cpr) {
+            $.mdc.bfm.cpr = {};
+        }
+
+        $.extend($.mdc.bfm.cpr, {
+            getEntryRefferingSourceAndStore: getEntryRefferingSourceAndStore,
+            getStoredEntryRefferingSource: getStoredEntryRefferingSource,
+            checkEntryRefferingSourceAtInit: checkEntryRefferingSourceAtInit,
+            getTheEntryClickEvent: getTheEntryClickEvent,
+            storeEntryPreviousPage: storeEntryPreviousPage,
+            getStoredEntryPreviousPage: getStoredEntryPreviousPage,
+            clearPreviousPageCache: clearPreviousPageCache,
+            clearEntryEventCache: clearEntryEventCache
+        });
+    };
+
+    doExport();
+}(jQuery));
+
+/*********************************************************************************************************
+* Australia pupup
+**********************************************************************************************************
+*/
+
+$.mdc.AustraliaPopup = {
+    isAustralia: function () {
+        var pathName = window.location.pathname;
+        if (pathName && (pathName == "/login.aspx" || pathName == "/pushemailprompt.aspx" || pathName == "/viewresearchdoc.aspx")) {
+
+        } else if (pathName.indexOf("/research/") == 0) {
+             if ($.cookie('MDC.ASPXAUTH') !== null) { return; }
+             var docId = $('#mdcHiddenDocId').val();
+             if (!docId) { return; }
+             //find token
+             var tokenString = '';
+             var frontIndex = document.URL.indexOf('?');
+             var thisUrl = document.URL.slice(frontIndex + 1);
+             var cols = thisUrl.split('&');
+             if (cols.length > 0) {
+               $.each(cols, function() {
+                    if (this.indexOf('token=') > -1) {
+                       tokenString = this.slice(this.indexOf('token=') + 6);   
+                    }
+               });
+             }
+             if (tokenString === '') {
+                 if ($.cookie('AUSTRALIA.DISPLAY.POPUP') == 'true') {
+                     $.mdc.AustraliaPopup.displayPopUp();
+                 } else if ($.cookie('AUSTRALIA.DISPLAY.POPUP') === null && $.cookie('AUSTRALIA.CONFIRM.STATE') !== 'true'
+                            && $.cookie('MDC.USER.COUNTRY') !== null && $.cookie('MDC.USER.COUNTRY').toLowerCase() === 'australia') {
+                     $.mdc.AustraliaPopup.displayPopUp();
+                 }
+             } else {
+                 var docUrl = "/identity/CheckDocMapping?docId=" + docId + "&token=" + tokenString;
+
+                 $.ajax({ url: docUrl }).done(function (data) {
+                     if (data == 'False') {
+                         if ($.cookie('AUSTRALIA.DISPLAY.POPUP') == 'true') {
+                             $.mdc.AustraliaPopup.displayPopUp();
+                         }
+                     }
+                 });
+             }
+        } else {
+            var cookies = document.cookie.split(';');
+            for (i = 0; i < cookies.length; i++) {
+                var item = cookies[i];
+                if (item) {
+                    item = item.trim();
+                    var cookie = item.split('=');
+                    if (cookie) {
+                        var cookieName = cookie[0];
+                        var cookieValue = cookie[1];
+                        if (cookieName && cookieValue && cookieName == "AUSTRALIA.DISPLAY.POPUP" && cookieValue == "true") {
+                            $.mdc.AustraliaPopup.displayPopUp();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    },
+    displayPopUp: function () {
+        var sWidth = document.body.clientWidth;
+        var sHeight = document.body.scrollHeight;
+        var bgObj = document.getElementById('backgroundDivForAustraliaPopup');
+        if (null == bgObj) {
+            bgObj = document.createElement("div");
+            bgObj.setAttribute("id", "backgroundDivForAustraliaPopup");
+            bgObj.style.position = "fixed";
+            bgObj.style.top = "0";
+            bgObj.style.left = "0";
+            bgObj.style.background = "#000";
+            bgObj.style.filter = "progid:DXImageTransform.Microsoft.Alpha(style=3,opacity=25,finishOpacity=75";
+            bgObj.style.opacity = "0.5";
+            bgObj.style.width = "100%";
+            bgObj.style.height = "100%";
+            bgObj.style.zIndex = "10000";
+            document.body.appendChild(bgObj);
+        }
+        bgObj.style.display = "";
+
+        var popUpObj = document.getElementById('AustraliaPopupDiv');
+        if (null == popUpObj) {
+            popUpObj = document.createElement("div");
+            popUpObj.setAttribute("id", "AustraliaPopupDiv");
+            popUpObj.style.background = "#fff";
+            popUpObj.style.position = "fixed";
+            popUpObj.style.left = "50%";
+            popUpObj.style.top = "50%";
+            popUpObj.style.marginLeft = "-209px";
+            popUpObj.style.marginTop = "-220px";
+            popUpObj.style.width = "418px";
+            popUpObj.style.zIndex = "10002";
+            var innerHtmlContent = "<div style='height:18px;background:#0028a0;padding:8px 0 9px 12px;text-align:left;'><img height='18' src='/_layouts/Mdc/Images/moodys-logo.jpg'></div>";
+            innerHtmlContent += "<div style='padding:0 15px;'>";
+            innerHtmlContent += "<div style='margin:30px 0 10px 0;color:#000;text-align:center;font-weight:400; font-size:12px; line-height:16px;'>Already a customer?</div>"
+            innerHtmlContent += "<div><a href='javascript:void(0);$.mdc.AustraliaPopup.loginClick()' style='display: inline-block;padding:8px 63px; color:#fff; border:none; background-color:#0028a0; font-size:15px; font-weight:600; border-radius:5px;'>Log In</a></div>"
+            innerHtmlContent += "<div style='height:49px;'><div style='width:174px;float:left;border-top:1px solid #aaa;margin:30px 0 18px 0;'></div><div style='float:left;font-size:9px;font-weight: 600;letter-spacing: 0.5px;text-transform: uppercase;line-height:39px;padding:10px 12px 0 12px;'>OR</div><div style='width:174px;float:left;border-top:1px solid #aaa;margin:30px 0 18px 0;'></div></div>"
+            innerHtmlContent += "<div style='margin-bottom:10px;color:#000;text-align:center;font-weight:400; font-size:12px; line-height:16px;'>Please confirm you are a <span style='font-weight:600'>Wholesale Client</span></div>"
+            innerHtmlContent += "<div style='text-align:left;overflow-y:auto; height:136px; border:1px solid #aaa;padding:12px 15px;font-weight:400; font-size:12px; line-height:16px;'>Any publication into Australia on this Site is pursuant to the Australian Financial Services License of Moody's affiliate, Moody's Investors Service Pty Limited, ABN 61 003 399 657 AFSL 336969 and/or Moody's Analytics Australia Pty Ltd ABN 94 105 136 972 AFSL 383569 (as applicable). Moody's credit ratings and publications are intended to be provided only to \"wholesale clients\" within the meaning of section 761G of the Corporations Act 2001. By continuing to access, browse or use this Site from within Australia, you represent to Moody's that you are, or are accessing the Site as a representative of, a \"wholesale client\" and that neither you nor the entity you represent will directly or indirectly disseminate any content from this Site to \"retail clients\" within the meaning of section 761G of the Corporations Act 2001. Moody's credit rating is an opinion as to the creditworthiness of a debt obligation of the issuer, not on the equity securities of the issuer or any form of security that is available to retail clients. <span style='font-weight:600; color:black;'>It would be dangerous for \"retail clients\" to consider Moody's credit ratings or publications in making any investment decision.</span> If in doubt you should contact your financial or other professional adviser. </div>";
+            innerHtmlContent += "<div style='margin:15px 0 30px 0;'><a href='javascript:void(0);$.mdc.AustraliaPopup.confirmClick()' style='display: inline-block;padding:8px 30px; color:#0028a0; border:1px solid #0028a0; font-size:15px; font-weight:500; border-radius:5px;'>Confirm Wholesale Status</a></div>";
+            innerHtmlContent += "</div>";
+
+            popUpObj.innerHTML = innerHtmlContent;
+            document.body.appendChild(popUpObj);
+        }
+        popUpObj.style.display = "";
+        $("body form").addClass("mdcBlur");
+        document.getElementById('AustraliaPopupDiv').focus();
+
+        var tracks = {
+            "WT.cg_n": "Australian Regulatory Requirement",
+            "WT.dl": 99
+        };
+        mdcCleanUpProps('cg_sec6;WT.pn_sku;WT.pn_id;WT.z_referringsource;WT.z_refsource2;WT.z_refsource3;WT.mc_id;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r');
+        dcsMultiTrack(tracks);
+    },
+    closePopup: function () {
+        var bkDiv = document.getElementById('backgroundDivForAustraliaPopup');
+        bkDiv.style.display = "none";
+        var popUp = document.getElementById('AustraliaPopupDiv');
+        popUp.style.display = "none";
+        if (!$("#research-tou").length > 0) {
+            $("body form").removeClass("mdcBlur");
+        }
+    },
+    confirmClick: function () {
+        document.cookie = "AUSTRALIA.CONFIRM.STATE=true;path=/;secure";
+        jQuery.mdc.AustraliaPopup.closePopup();
+        var pageName = WebTrends.prototype.dcsGetMeta("WT.cg_n");
+        if (pageName==undefined ||pageName==null||pageName=="") {
+            pageName = "unspecified";
+        }
+
+        var tracks = {
+            "WT.z_referringsource": "AustralianRegulatoryRequirement~ConfirmWholesaleStatus",
+            "WT.z_refsource2": pageName,
+            "WT.pn_id": "Null",
+            "WT.z_pn_id2": "Null",
+            "WT.z_refsource3": "Icon",
+            "WT.dl": 99
+        };
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6;WT.pn_sku;WT.mc_id;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r');
+        dcsMultiTrack(tracks);
+    },
+    loginClick: function () {
+        var localurl = window.location.href;
+        var pageName = WebTrends.prototype.dcsGetMeta("WT.cg_n");
+        if (pageName == undefined || pageName == null || pageName == "") {
+            pageName = "unspecified";
+        }
+
+        var tracks = {
+            "WT.z_referringsource": "AustralianRegulatoryRequirement~Login",
+            "WT.z_refsource2": pageName,
+            "WT.pn_id": "Null",
+            "WT.z_pn_id2": "Null",
+            "WT.z_refsource3":"Icon",
+            "WT.dl": 99
+        };
+        mdcCleanUpProps('WT.cg_n;WT.cg_s;WT.cg_sec3;WT.cg_sec4;WT.cg_sec5;WT.cg_sec6;cg_sec6;WT.pn_sku;WT.mc_id;WT.tx_u;WT.si_n;WT.si_x;WT.si_cs;WT.oss;WT.oss_r');
+        dcsMultiTrack(tracks);
+        window.location.href = "/login.aspx?ReturnUrl=" + localurl;
+    }
+}

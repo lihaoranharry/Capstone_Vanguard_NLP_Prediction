@@ -1,0 +1,442 @@
+/*********************************************************************************************************
+* Socialize BizCore Layer          ---          Socialize class definition
+**********************************************************************************************************
+*/
+(function ($) {
+
+    function socialize() {
+        //gigya global settings
+        window["__gigyaConf"] = {
+            connectWithoutLoginBehavior: "alwaysLogin "
+        };
+
+        //public members
+        this.services = [];
+        var curScript = $('script[src*="mdc_gigya.js"]');
+        this.key = curScript.getUrlParam('key');
+        this.providers = curScript.getUrlParam('providers');
+        if (this.key) {
+            var protocal = document.location.protocol === 'https:' ? 'https://cdns' : 'http://cdn';
+            this.library = protocal + '.gigya.com/js/socialize.js?apikey=' + this.key;
+        }
+
+        // Call the parents constructor
+        EventBox.call(this);
+
+        //private members
+        var fn = {
+            self: this,
+            functions: [],
+            handler: function (eventObj) {
+                var action = eventObj && eventObj.context && eventObj.context.action;
+                if (!action || !action.equalsAny('login', 'link', 'delink')) return;
+                if (eventObj.errorCode && eventObj.errorMessage) {
+                    $.util.alert('Error on social {0}: {1}'.format(action, eventObj.errorMessage));
+                    return;
+                }
+                if (eventObj.provider == 'site') return;
+                var providerIdentity = eventObj.user.identities[eventObj.provider],
+                    postdata = {
+                        ActionProvider: eventObj.provider,
+                        ActionProviderUid: providerIdentity ? providerIdentity.providerUID : '',
+                        GigyaUser: JSON.stringify(eventObj.user)
+                    };
+                $.post(fn.self.getActionUrl(action), postdata, function (data) {
+                    fn.self.trigger(null, 'onSocial' + action.toCamelCase(), data, eventObj);
+                }, 'json');
+            },
+            logout: function () {
+                dcsMultiTrack('WT.cg_n', 'Logout');
+            },
+            isReady: function () {
+                return fn.self.services.length > 0;
+            }
+        };
+
+        // This function will be called when the Gigya Socialize script has finished loading
+        window["onGigyaServiceReady"] = function (serviceName) {
+            if (serviceName) fn.self.services.push(serviceName);
+            while (fn.functions.length > 0) {
+                fn.functions.shift().call(fn.self);
+            }
+        };
+
+        this.ready = function (callback) {
+            if (!$.isFunction(callback)) return;
+            if (fn.isReady()) callback.call(fn.self);
+            else fn.functions.push(callback);
+        };
+
+        //load gigya api asynchronous
+        if (this.library && !fn.isReady()) $.getScript(this.library);
+
+        //initialize global event handlers
+        this.ready(function () {
+            gigya.socialize.addEventHandlers({
+                onLogin: fn.handler,
+                onLogout: fn.logout,
+                onConnectionAdded: fn.handler,
+                onConnectionRemoved: fn.handler
+            });
+        });
+
+        $(function () {
+            if (window.thePage && window.thePage.locale) {
+                fn.self.language = window.thePage.locale.Language.IsoName;
+                fn.self.region = window.thePage.locale.Country.IsoName;
+            } else {
+                fn.self.language = $(document).getUrlParam('lang');
+                fn.self.region = $(document).getUrlParam('cy');
+            }
+
+            fn.self.trigger(null, 'onPageLoad');
+        });
+    }
+
+    socialize.prototype = $.extend(new EventBox(), {
+        constructor: socialize,
+        getActionUrl: function (action) {
+            var curActionUrl = '/gigya/' + action;
+            if (this.language) {
+                curActionUrl += '?lang=' + this.language;
+                if (this.region) curActionUrl += 'cy=' + this.region;
+            }
+            return curActionUrl;
+        },
+        getUserInfo: function (callback/*function (user)*/) {
+            var $this = this;
+            this.ready(function () {
+                gigya.socialize.getUserInfo({
+                    'callback': function (evt) {
+                        callback.call($this, evt && evt.user);
+                    }
+                });
+            });
+        },
+        notifyLogin: function (notification, callback) {
+            if (!notification) throw 'Expected argument "notification" is not exist!';
+            var notify = {
+                siteUID: notification.siteUid,
+                UIDTimestamp: notification.uidTimeStamp,
+                UIDSig: notification.uidSignature,
+                userInfo: notification.userInfo
+            };
+            if (callback) notify.callback = callback;
+            this.ready(function () {
+                gigya.socialize.notifyLogin(notify);
+            });
+        },
+        doTaskAsLoggedIn: function (task/*function (user)*/) {
+            var $this = this;
+            this.getUserInfo(function (user) {
+                if (user && user.isLoggedIn) {
+                    task.call($this, user);
+                    return;
+                }
+                $.get($this.getActionUrl('notify'), function (data) {
+                    $this.notifyLogin(data, function (response) {
+                        if (response.errorCode === 0) task.call($this, response.user);
+                        else console.error('Gigya login failed! Please check your social network or proxy and try again!');
+                    });
+                }, 'json');
+            });
+        },
+        /**
+        * get or set last login provider name and store it in cookie
+        */
+        loginProvider: function (provider) {
+            if (provider === null || typeof provider === 'string') {
+                $.cookie('LoginProvider', provider, { path: '/', secure: true });
+                return provider;
+            }
+            return $.cookie('LoginProvider');
+        },
+        showLoginUI: function (uiArgs, handler) {
+            var params = $.extend({ context: handler || { action: 'login' } }, {
+                height: 30,
+                width: 170,
+                showTermsLink: false,
+                hideGigyaLink: true,
+                showWhatsThis: false,
+                cid: '',
+                enabledProviders: this.providers,
+                buttonsStyle: 'standard'
+            }, uiArgs);
+            this.ready(function () {
+                gigya.socialize.showLoginUI(params);
+            });
+        },
+        link: function (providerName) {
+            var params = { context: { action: 'link' }, provider: providerName };
+            this.doTaskAsLoggedIn(function (user) {
+                if (user && user.identities && user.identities[providerName]) {
+                    gigya.socialize.removeConnection({
+                        provider: providerName,
+                        callback: function () { gigya.socialize.addConnection(params); }
+                    });
+                } else {
+                    gigya.socialize.addConnection(params);
+                }
+            });
+        },
+        delink: function (providerName) {
+            var params = { context: { action: 'delink' }, provider: providerName };
+            this.doTaskAsLoggedIn(function () {
+                gigya.socialize.removeConnection(params);
+            });
+        },
+        logout: function () {
+            this.loginProvider(null);
+            this.ready(function () {
+                gigya.socialize.logout({});
+            });
+        },
+        sendWebTrends: function (actionName, provider) {
+            provider = provider.toCamelCase();
+            dcsMultiTrack({
+                'DCS.dcsuri': "{0}/{1}/".format(actionName, provider),
+                'WT.cg_n': actionName.toCamelCase(),
+                'WT.cg_s': provider
+            });
+        }
+    });
+
+    //init a socialize instance named as gigya
+    if (!$.gigya) $.gigya = new socialize();
+})(jQuery);
+
+/**************************************************************************
+* Socialize UI Plugin          ---          Social Login Controls
+***************************************************************************
+*/
+(function ($) {
+
+    function loginPlugin() {
+        //private functions
+        var fn = {
+            login: function (loginObj, gigyaObj) {
+                if (typeof(gigyaObj.context.redirect) === 'string' && gigyaObj.context.redirect.length > 0) {
+                    document.location.href = gigyaObj.context.redirect;
+                } else {
+                    document.location.reload(true);
+                }
+            },
+            register: function (loginObj, gigyaObj) {
+                if ($.isFunction(gigyaObj.context.onRegister)) {
+                    gigyaObj.context.onRegister.call(loginObj, gigyaObj);
+                } else {
+                    $('#mdcLoginPopUpControl').mdcHide();
+                    $.mdc.login.socialLinkRegister.init(gigyaObj);
+                }
+            },
+            error: function (loginObj, gigyaObj) {
+                if ($.isFunction(gigyaObj.context.onRegister)) {
+                    $.util.alert(loginObj.error);
+                }
+                $.mdc.login.onLoginFailed(loginObj.error);
+            }
+        };
+
+        //public functions -- implement events
+        this.onPageLoad = function () {
+            $('#loginDiv, #loginHomeDiv, #loginAtagDiv, #simLoginDiv').each(function () {
+                var arg = { containerID: this.id };
+                switch (this.id) {
+                    case 'loginDiv':
+                        arg = { width: 263, containerID: this.id };
+                        break;
+                    case 'simLoginDiv':
+                        arg = { height: 16, width: 130, containerID: this.id };
+                        break;
+                }
+                //var arg = this.id === 'loginDiv' ? { width: 263, containerID: this.id } : { containerID: this.id };
+                $.gigya.showLoginUI(arg);
+            });
+        };
+
+        this.onSocialLogin = function (loginObj, gigyaObj) {
+            if (loginObj && !loginObj.error) {
+                if (loginObj.isNewUser) {
+                    fn.register(loginObj, gigyaObj);
+                    return;
+                }
+                if (loginObj.isLoggedIn) {
+                    $.gigya.sendWebTrends('Login', gigyaObj.provider);
+                    fn.login(loginObj, gigyaObj);
+                    return;
+                }
+            }
+            fn.error(loginObj, gigyaObj);
+        };
+    }
+
+    $.gigya.register('LoginBar', new loginPlugin());
+})(jQuery);
+
+/******************************************************************************
+* Socialize UI Plugin       ---       Link Social Account DropDown Layer
+*******************************************************************************
+*/
+(function ($) {
+
+    function socialDropdownPlugin() {
+        //private members & functions
+        var icon = {
+            normal: '/_Layouts/Mdc/Images/Nav/moodys_14.png',
+            hover: '/_Layouts/Mdc/Images/Nav/moodys_14_hover.png'
+        }, fn = {
+            collapse: function () {
+                $('#mdcWelcomeBar').removeClass('hover');
+                $('#gigyaSocialPopUpControl').addClass('mdcHide');
+                if (!$.gigya.loginProvider()) fn.setLoginIcon(icon.normal);
+            },
+            hover: function () {
+                var $this = $('#mdcWelcomeBar'),
+                    popup = $('#gigyaSocialPopUpControl').removeClass("mdcHide"),
+                    position = $this.offset();
+                position.top -= 12;
+                position.left -= 15;
+                $this.addClass('hover').offset(position);
+                position.top += $this.height();
+                popup.offset(position).width($this.width());
+                if (!$.gigya.loginProvider()) fn.setLoginIcon(icon.hover);
+            },
+            isPopupVisible: function () {
+                return $('#mdcWelcomeBar').hasClass('hover');
+            },
+            setLoginIcon: function (iconSrc) {
+                $('#mdcWelcomeBar .mdcLoginProviderIcon').attr('src', iconSrc);
+            },
+            showLoginIcon: function (provider) {
+                if (provider) {
+                    $('#gigyaSocialPopUpControl .social-provider-icons a').each(function () {
+                        if ($(this).data('name').toLowerCase() === provider.toLowerCase()) {
+                            var iconSrc = $('img', this).attr('src');
+                            fn.setLoginIcon(iconSrc);
+                        }
+                    });
+                } else {
+                    fn.setLoginIcon(fn.isPopupVisible() ? icon.hover : icon.normal);
+                }
+            },
+            hideLinkedIcons: function (linkedProviders) {
+                var curExistProvider = false;
+                $('#gigyaSocialPopUpControl .social-provider-icons a').each(function () {
+                    var show = $.inArray($(this).data('name').toLowerCase(), linkedProviders) === -1;
+                    $(this).toggle(show);
+                    if (show) curExistProvider = true;
+                });
+                $('#gigyaSocialPopUpControl .content-wrapper').toggle(curExistProvider);
+            }
+        };
+
+        //public functions -- implement events
+        $.extend(this, {
+            onPageLoad: function () {
+                if ($('#gigyaSocialPopUpControl').length === 0) return;
+                //fix IE7 width not stable issue
+                (function(bar) { bar.css('min-width', bar.width()); })($('#mdcWelcomeBar>.content-wrapper'));
+                //bind events
+                $('#gigyaSocialPopUpControl .social-provider-icons a').click(function () {
+                    $.gigya.link($(this).data('name'));
+                });
+                $('#mdcWelcomeBar').click(function () {
+                    fn.isPopupVisible() ? fn.collapse() : fn.hover();
+                });
+                $(document).click(function (event) {
+                    if (!fn.isPopupVisible()) return;
+                    var $target = $(event.target);
+                    var elementId = $target.attr("id");
+                    if (elementId != 'mdcWelcomeBar' && $target.parents('#mdcWelcomeBar').length === 0
+                        && elementId != 'gigyaSocialPopUpControl' && $target.parents('#gigyaSocialPopUpControl').length === 0) {
+                        fn.collapse();
+                    }
+                });
+                //update UI
+                fn.showLoginIcon($.gigya.loginProvider());
+                $.gigya.doTaskAsLoggedIn(function (user) {
+                    fn.hideLinkedIcons(user.providers);
+                });
+            },
+            onSocialLink: function (linkObj, gigyaObj) {
+                if (linkObj && linkObj.error) {
+                    gigya.socialize.removeConnection({ provider: gigyaObj.provider });
+                    $.util.alert(linkObj.error);
+                    return;
+                }
+                $.gigya.sendWebTrends('Link', gigyaObj.provider);
+                fn.showLoginIcon(gigyaObj.provider);
+                fn.hideLinkedIcons(gigyaObj.user && gigyaObj.user.providers);
+            },
+            onSocialDelink: function (delinkObj, gigyaObj) {
+                if (delinkObj && delinkObj.error) {
+                    $.util.alert(delinkObj.error);
+                    return;
+                }
+                $.gigya.sendWebTrends('DeLink', gigyaObj.provider);
+                fn.showLoginIcon($.gigya.loginProvider());
+                fn.hideLinkedIcons(gigyaObj.user && gigyaObj.user.providers);
+            }
+        });
+    }
+
+    $.gigya.register('LinkLayer', new socialDropdownPlugin());
+})(jQuery);
+
+/**************************************************************************
+* Socialize UI Plugin          ---          Simple ShareBar
+***************************************************************************
+*/
+(function ($) {
+
+    function shareBarPlugin() {
+        //private functions
+        var fn = {
+            getProviders: function () {
+                var providers = 'Facebook,Twitter,LinkedIn,google-plusone,Share';
+                var providerArray = providers.toArray(',', function () { return { provider: this.toString() }; });
+                providerArray[3].size = 'small';
+                return providerArray;
+            },
+            onSendDone: function (event) {
+                if (!event || !event.providers) return;
+                var providers = event.providers.split(",");
+                for (var i = 0; i < providers.length; i++) {
+                    var tracks = {
+                        'DCS.dcsuri': "Share/{0}/{1}".format(providers[i].toString().toCamelCase(), event.context.documentId),
+                        'WT.cg_n': 'Share',
+                        'WT.cg_s': "{0}~{1}".format(providers[i].toString().toCamelCase(), event.context.documentId)
+                    };
+                    if (event.context.wtDl) {
+                        tracks['WT.dl'] = event.context.wtDl;
+                        tracks['WT.pn_sku'] = '';
+                        tracks['WT.cg_sec3'] = '';
+                        tracks['WT.cg_sec4'] = '';
+                    }
+                    dcsMultiTrack(tracks);
+                }
+            }
+        };
+
+        //public functions -- implement events
+        this.onPageLoad = function () {
+            if ($('#mdcDocSharingButtons #componentDiv').length == 0) return;
+            var defaultParams = {
+                containerID: 'componentDiv',
+                shareButtons: fn.getProviders(),
+                showCounts: 'none',
+                iconsOnly: 'true',
+                context: { documentId: window.documentId, wtDl: window.wtDl },
+                onSendDone: fn.onSendDone
+            };
+            $.gigya.ready(function () {
+                var act = new gigya.socialize.UserAction();
+                act.setTitle(document.title);
+                var params = $.extend({ userAction: act }, defaultParams);
+                gigya.socialize.showShareBarUI(params);
+            });
+        };
+    }
+
+    $.gigya.register('ShareBar', new shareBarPlugin());
+})(jQuery);

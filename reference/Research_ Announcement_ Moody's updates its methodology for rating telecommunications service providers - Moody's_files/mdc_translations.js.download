@@ -1,0 +1,83 @@
+if ($.mdc.translation == null) {
+    $.mdc.translation = {
+        researchSearchGlobeWebtrends: function (appearsNextToDocID, globeAppearsPlace, clickedOnDocID, lang) {
+            var wtZreferrringSource,wtti;
+            if (clickedOnDocID != null && clickedOnDocID != "" && lang != null && lang != "") {
+                wtZreferrringSource = "GlobePopUpBoxLink~" + appearsNextToDocID + "~" + globeAppearsPlace + "~" + clickedOnDocID + "~" + lang;
+                wtti = "Link: GlobePopUpBoxLink";
+            } else {
+                wtZreferrringSource = "GlobeSymbolClick~" + appearsNextToDocID + "~" + globeAppearsPlace;
+                wtti = "Link: GlobeSymbolClick";
+
+            }
+            var tracks = {
+                "WT.ti": wtti,
+                "WT.z_referringsource": wtZreferrringSource,
+                "WT.dl": 99,
+                "WT.cg_n": "",
+                "WT.cg_s": ""
+            };
+            dcsMultiTrack(tracks);
+            mdcCleanUpProps('WT.ti;WT.z_referringsource;"WT.z_previouspage;WT.pn_id;WT.dl;WT.cg_n;WT.cg_s');
+        },
+        displayTrans: function (obj, docId, transId, lang, cy) {
+            var transDiv = $(obj).parent().find("div[id|=transDiv]")[0];
+            if (transDiv.style.visibility == "visible") {
+                transDiv.style.visibility = "hidden";
+            } else {
+                var url = "/TranslatedDocuments.aspx?docId=" + docId + "&transId=" + transId + "&lang=" + lang + "&cy=" + cy;
+                this.loadDiv(transDiv, url);
+                transDiv.style.visibility = "visible";
+            }
+            
+            if ($(obj).parents("#mdcResearchSearchResults").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends(docId, "SearchResults", "", "");
+            }
+            else if ($(obj).parents("#mdcAtAGlanceTile2").length > 0) {
+                $.mdc.translation.researchSearchGlobeWebtrends(docId, $.atag.getOrgId(), "", "");
+            } else {
+                $.mdc.translation.researchSearchGlobeWebtrends(docId, "Other", "", "");
+            }
+        },
+        loadDiv: function (transDiv, url) {
+            $.ajax(
+                {
+                    url: url,
+                    async: true,
+                    contentType: "html",
+                    type: "GET",
+                    beforeSend: function () {
+                        $(transDiv).html('<div style="z-index: 50;height: 50px;margin-left:208px;width: 50px;text-align: center;"><img src="/_layouts/MDC/Images/AjaxLoadingCircle.gif" style="margin-top: 15px;"></div>');
+                        transDiv.style.visibility = "visible";
+                    },
+                    success: function (html) {
+                        $(transDiv).html(html);
+                    },
+                    error: function () {
+                        $(transDiv).html('');
+                    }
+                }
+            );
+        },
+        hideTrans: function (obj) {
+            $(obj).parents("div[id|=transDiv]")[0].style.visibility = "hidden";
+        },
+        changeSaveSelection: function(obj) {
+            var objFrm = obj.form;
+            var fromStr = "saveLang=1";
+            var toStr = "saveLang=0";
+            if (obj.checked == true) {
+                fromStr = "saveLang=0";
+                toStr = "saveLang=1";
+            }
+
+            $(objFrm).find(".lnkTrans").each(function() {
+                $(this).attr("href", function() {
+                     return $(this).attr("href").replace(fromStr, toStr);
+                });
+            });
+        }        
+    };
+}
+
+

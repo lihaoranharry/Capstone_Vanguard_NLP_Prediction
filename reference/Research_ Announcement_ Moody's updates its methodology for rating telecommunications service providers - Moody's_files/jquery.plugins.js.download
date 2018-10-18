@@ -1,0 +1,1036 @@
+/************************************************************************************************************************** 
+* EventBox Class
+* Inherit from this class,  it provides register clients and trigger event on each clients' related function.
+* @constructor
+* @this {EventBox}
+* @author Brian Chen
+*/
+function EventBox() {
+    this.clients = {};
+    this.events = {};
+}
+
+/**
+* trigger a event on a client or all clients or @this
+* @this {EventBox}
+* @param {string|null|this} a client name, or null to specify all clients, or this object to trigger on self events.  
+* @param {string} event name
+* @param {...*} aditional event arguments
+* @return {*} event result
+*/
+EventBox.prototype.trigger = function (clientName, eventName) {
+    eventName = eventName.qualified();
+    var args = Array.prototype.slice.call(arguments, 2);
+    if (clientName === this) {
+        var handlers = this.events[eventName];
+        if (handlers && handlers.length) {
+            for (var i = 0; i < handlers.length; i++) {
+                handlers[i].apply(this, args);
+            }
+        }
+        return true;
+    } else if (clientName === null) {
+        for (var key in this.clients) {
+            var target = this.clients.hasOwnProperty(key) && this.clients[key],
+                fn = target && target[eventName];
+            if (typeof fn === 'function') fn.apply(target, args);
+        }
+        return true;
+    } else {
+        var client = this.clients[clientName],
+            event = client && client[eventName];
+        if (typeof event === 'function') return event.apply(client, args);
+        return false;
+    }
+};
+
+/**
+* register client
+* @param {string} clientName
+* @param {object} client object with event receivers
+*/
+EventBox.prototype.register = function (clientName, client) {
+    this.clients[clientName.qualified()] = client;
+};
+
+/**
+* bind event receiver on @this
+* @this {EventBox}
+* @param {string} eventName
+* @param {function} event receiver
+*/
+EventBox.prototype.bind = function (eventName, callback) {
+    if (typeof callback !== 'function') throw 'Invalid callback function!';
+    eventName = eventName.qualified();
+    if (!this.events[eventName]) this.events[eventName] = [callback];
+    else this.events[eventName].push(callback);
+};
+
+/************************************************************************************************************************** 
+* TabSwitcher Class (rely on jQuery)
+* parameter for selector {container, heads, selectedClass, [optional]getBody[function(tabName)]}
+* optional parameter for ajax {beforeSend, complete, error, success }, the same as parameter of jQuery.ajax()
+*/
+function TabSwitcher(selector, ajax) {
+    // Call the parent constructor
+    EventBox.call(this);
+    selector.getHead = function (tabName) {
+        return $(selector.heads).filter(function () { return $(this).qualifiedName() == tabName; });
+    };
+    if (!selector.getBody) {
+        selector.prefix = selector.container.words().join('_');
+        selector.getBody = function (tabName) { return $('#{0}_{1}'.format(selector.prefix, tabName)); };
+    }
+
+    //=============================PRIVATE FUNCTIONS=============================
+    var $this = this,
+        fn = {
+            clickTab: function (curTab, callback) {
+                var curTabUrl = curTab.getUrl();
+                if (!curTabUrl) return;
+                var preTab = curTab.siblings('.' + selector.selectedClass),
+                    curTabArg = {
+                        head: curTab,
+                        name: curTab.qualifiedName(),
+                        url: curTabUrl
+                    },
+                    preTabArg = {
+                        head: preTab,
+                        name: preTab.qualifiedName(),
+                        url: preTab.getUrl()
+                    };
+                curTab.addClass(selector.selectedClass);
+                preTab.removeClass(selector.selectedClass);
+                fn.switchTabContent(curTabArg, preTabArg, callback);
+            },
+            switchTabContent: function (curTab, preTab, callback) {
+                curTab.body = selector.getBody(curTab.name);
+                preTab.body = selector.getBody(preTab.name);
+                var eventArg = { curTab: curTab, preTab: preTab };
+                if (curTab.body.length == 0 || (!selector.prefix && !$.trim(curTab.body.html()))) {
+                    fn.loadTab(curTab, function (html, status, jqXhr) {
+                        eventArg.data = html;
+                        eventArg.status = status;
+                        eventArg.jqXhr = jqXhr;
+                        curTab.body = selector.getBody(curTab.name);
+                        fn.triggerSwitchEvents(eventArg, callback);
+                    });
+                    return;
+                }
+                fn.triggerSwitchEvents(eventArg, callback);
+            },
+            reloadTabContent: function (curTab, callback) {
+                curTab.body = selector.getBody(curTab.name);
+                var eventArg = { curTab: curTab };
+                fn.loadTab(curTab, function (html, status, jqXhr) {
+                    eventArg.data = html;
+                    eventArg.status = status;
+                    eventArg.jqXhr = jqXhr;
+                    curTab.body = selector.getBody(curTab.name);
+                    fn.triggerSwitchEvents(eventArg, callback);
+                });
+            },
+            triggerSwitchEvents: function (event, callback) {
+                if (event.preTab && event.preTab.name) {
+                    event.preTab.body.mdcHide();
+                    $this.trigger(event.preTab.name, 'hide', event);
+                }
+                event.curTab.body.mdcShow();
+                if (!event.curTab.body.data('initialized')) {
+                    $this.trigger(event.curTab.name, 'init', event);
+                    event.curTab.body.data('initialized', true);
+                    $this.trigger($this, 'load', event);
+                }
+                $this.trigger(event.curTab.name, 'show', event);
+                if (event.preTab && event.preTab.name) $this.trigger($this, 'switch', event);
+                if (callback) callback.call(null, event);
+            },
+            loadTab: function (tab, initCallback) {
+                var curAjax = $.extend({ tab: tab, url: tab.url, type: 'GET', dataType: 'html', cache: false }, ajax);
+                curAjax.success = function (html) {
+                    var callDefaultAppend = true;
+                    if (ajax.success) {
+                        var ret = ajax.success.apply(curAjax, arguments);
+                        if (callDefaultAppend = (ret && typeof ret === 'string')) html = ret;
+                    }
+                    if (callDefaultAppend && typeof html === 'string') {
+                        if (selector.prefix) html = '<div id="{0}_{1}">{2}</div>'.format(selector.prefix, tab.name, html);
+                        if (tab.reload) {
+                            tab.body.replaceWith(html);
+                        } else {
+                            var container = tab.body.length == 0 ? $(selector.container) : tab.body;
+                            container.append(html);
+                        }
+                    }
+                    initCallback.apply(null, arguments);
+                };
+                $.ajax(curAjax);
+            }
+        };
+
+    if (!selector.btnNext) {
+        $(selector.heads).click(function () {
+            fn.clickTab($(this));
+        });
+    }
+
+    //=============================PUBLIC FUNCTIONS=============================
+    //register a tab object which could response on tab switch events, such as [init, show, hide]
+    this.register = function (tabName, tabObject) {
+        $.extend(tabObject, {
+            name: tabName.qualified(),
+            head: function () { return selector.getHead(this.name); },
+            body: function () { return selector.getBody(this.name); }
+        });
+        EventBox.prototype.register.call(this, tabObject.name, tabObject);
+    };
+
+    //common events that occurs when tabs are switched
+    this.onSwitch = function (callback/*fn(event)*/) {
+        this.bind('switch', callback);
+    };
+
+    //common events that occurs when a tab is first loaded or reloaded
+    this.onLoad = function (callback/*fn(event)*/) {
+        this.bind('load', callback);
+    };
+
+    //action, reload current tab with a specified URL and callback()
+    this.reload = function (url, callback/*fn(event)*/) {
+        var tabHead = this.selectedTab();
+        var curTab = {
+            'head': tabHead,
+            'name': tabHead.qualifiedName(),
+            'reload': true,
+            'url': url
+        };
+        fn.reloadTabContent(curTab, callback);
+    };
+
+    //get currently seletected tab header(jQuery object)
+    this.selectedTab = function () {
+        return $(selector.heads).filter(function () {
+            return $(this).hasClass(selector.selectedClass);
+        });
+    };
+
+    //click a tab
+    this.clickTab = function (tabName, callback/*fn(event)*/) {
+        var curTab = selector.getHead(tabName.qualified());
+        if (curTab.length > 0) fn.clickTab(curTab, callback);
+    };
+
+    //get specified tab header(jQuery object)
+    this.tabHead = function (tabName) {
+        return selector.getHead(tabName.qualified());
+    };
+
+    //get specified tab body(jQuery object)
+    this.tabBody = function (tabName) {
+        return selector.getBody(tabName.qualified());
+    };
+}
+
+// inherit from EventBox
+TabSwitcher.prototype = new EventBox();
+TabSwitcher.prototype.constructor = TabSwitcher;
+
+//=============================jquery shortcut for TabSwitcher constructor=============================
+(function ($) {
+
+    $.fn.qualifiedName = function () {
+        var name = this.data('name') || this.text();
+        return name.qualified();
+    };
+
+    $.fn.getUrl = function () {
+        return this.data('src') || this.data('href') || this.data('url') || this.attr('src') || this.attr('href');
+    };
+
+    //parameter for selector {heads, selectedClass, [optional]getBody[function(tabName)]}
+    $.fn.tabs = function (selector, ajax) {
+        var m = $.extend({}, selector, {
+            container: this.selector,
+            heads: this.find(selector.heads).selector
+        });
+        ajax = $.extend({
+            beforeSend: function () { $(m.container).updateOn(); },
+            complete: function (jqXhr, textStatus) { if (textStatus == 'success') $(m.container).cancelUpdatingOn(); },
+            error: function (jqXhr) { $(m.container).showUpdateError(jqXhr.statusText); }
+        }, ajax);
+        return new TabSwitcher(m, ajax);
+    };
+
+})(jQuery);
+
+//=============================jquery shortcut for Wizard constructor=============================
+(function ($) {
+    //parameter for selector {heads, selectedClass, btnBack, btnNext, [optional]highlightClass, [optional]getBody[function(tabName)]}
+    $.fn.steps = function (selector, ajax) {
+        var $this = this;
+        var m = $.extend({}, selector, {
+            container: $this.selector,
+            heads: $this.find(selector.heads).selector
+        });
+        ajax = $.extend({
+            beforeSend: function () { $(m.container).updateOn(); },
+            complete: function (jqXhr, textStatus) { if (textStatus == 'success') $(m.container).cancelUpdatingOn(); },
+            error: function (jqXhr) { $(m.container).showUpdateError(jqXhr.statusText); }
+        }, ajax);
+        var w = new TabSwitcher(m, ajax);
+
+        var $btnBack = $this.find(selector.btnBack);
+        var $btnNext = $this.find(selector.btnNext);
+        var $heads = $this.find(selector.heads);
+        var stepCount = $heads.length;
+        var fn = {
+            currentStep: function () {
+                return $heads.index($heads.filter('.' + selector.selectedClass));
+            },
+            goStep: function (index) {
+                if (index < 0 || index >= stepCount) return;
+                w.clickTab($heads.eq(index).qualifiedName());
+                fn.refresh(index);
+            },
+            refresh: function (index) {
+                var refreshBtn = function () {
+                    $btnBack.hide();
+                    $btnNext.hide();
+                    var currentStep = fn.currentStep();
+                    if (currentStep !== 0) $btnBack.show();
+                    if (currentStep !== stepCount - 1) $btnNext.show();
+                },
+                    refreshTab = function () {
+                        if (selector.highlightClass)
+                            $heads.removeClass(selector.highlightClass).filter(":lt({0})".format(index + 1)).addClass(selector.highlightClass);
+                    };
+                refreshBtn();
+                refreshTab();
+            },
+            init: function () {
+                fn.goStep(0);
+            }
+        };
+
+        var ON_BACK_CLICK = 'onBackClick';
+        var ON_NEXT_CLICK = 'onNextClick';
+        $this.on("click", selector.btnBack, function () {
+            var currentStep = fn.currentStep();
+            var stepName = $heads.eq(currentStep).qualifiedName();
+            if (!w.trigger(stepName, ON_BACK_CLICK)) return;
+            fn.goStep(fn.currentStep() - 1);
+        });
+        $this.on("click", selector.btnNext, function () {
+            var currentStep = fn.currentStep();
+            var stepName = $heads.eq(currentStep).qualifiedName();
+            if (!w.trigger(stepName, ON_NEXT_CLICK)) return;
+            fn.goStep(currentStep + 1);
+        });
+        $this.on("click", selector.heads, function () {
+            var currentStep = fn.currentStep();
+            var targetStep = $(this).index();
+            if (currentStep === targetStep) return;
+            var step = currentStep > targetStep ? -1 : 1;
+            var eventName = currentStep > targetStep ? ON_BACK_CLICK : ON_NEXT_CLICK;
+            for (var i = currentStep; i !== targetStep; i = i + step) {
+                var stepName = $heads.eq(i).qualifiedName();
+                if (!w.trigger(stepName, eventName)) return;
+                fn.goStep(i + step);
+            }
+        });
+
+        w.goStep = function (index) {
+            fn.goStep(index);
+        };
+        w.curStep = function () {
+            return fn.currentStep();
+        };
+        fn.init();
+        return w;
+    };
+})(jQuery);
+
+//=============================jquery Cookie plugin=============================
+(function ($) {
+    /**
+    * Cookie plugin
+    *
+    * Copyright (c) 2006 Klaus Hartl (stilbuero.de)
+    * Dual licensed under the MIT and GPL licenses:
+    * http://www.opensource.org/licenses/mit-license.php
+    * http://www.gnu.org/licenses/gpl.html
+    *
+    * Create a cookie with the given name and value and other optional parameters.
+    *
+    * @example $.cookie('the_cookie', 'the_value');
+    * @desc Set the value of a cookie.
+    * @example $.cookie('the_cookie', 'the_value', { expires: 7, path: '/', domain: 'jquery.com', secure: true });
+    * @desc Create a cookie with all available options.
+    * @example $.cookie('the_cookie', 'the_value');
+    * @desc Create a session cookie.
+    * @example $.cookie('the_cookie', null);
+    * @desc Delete a cookie by passing null as value. Keep in mind that you have to use the same path and domain
+    *       used when the cookie was set.
+    *
+    * @param String name The name of the cookie.
+    * @param String value The value of the cookie.
+    * @param Object options An object literal containing key/value pairs to provide optional cookie attributes.
+    * @option Number|Date expires Either an integer specifying the expiration date from now on in days or a Date object.
+    *                             If a negative value is specified (e.g. a date in the past), the cookie will be deleted.
+    *                             If set to null or omitted, the cookie will be a session cookie and will not be retained
+    *                             when the the browser exits.
+    * @option String path The value of the path atribute of the cookie (default: path of page that created the cookie).
+    * @option String domain The value of the domain attribute of the cookie (default: domain of page that created the cookie).
+    * @option Boolean secure If true, the secure attribute of the cookie will be set and the cookie transmission will
+    *                        require a secure protocol (like HTTPS).
+    * @type undefined
+    *
+    * @name $.cookie
+    * @cat Plugins/Cookie
+    * @author Klaus Hartl/klaus.hartl@stilbuero.de
+    */
+
+    /**
+    * Get the value of a cookie with the given name.
+    *
+    * @example $.cookie('the_cookie');
+    * @desc Get the value of a cookie.
+    *
+    * @param String name The name of the cookie.
+    * @return The value of the cookie.
+    * @type String
+    *
+    * @name $.cookie
+    * @cat Plugins/Cookie
+    * @author Klaus Hartl/klaus.hartl@stilbuero.de
+    */
+    $.cookie = function (name, value, options) {
+        if (typeof name == 'undefined') { // list out all cookies' name
+            return document.cookie.match(/\w+(?==)/g);
+        } else if (typeof value != 'undefined') { // name and value given, set cookie
+            options = options || {};
+            if (value === null) {
+                value = '';
+                options.expires = -1;
+            }
+            var expires = '';
+            if (options.expires && (typeof options.expires == 'number' || options.expires.toUTCString)) {
+                var date;
+                if (typeof options.expires == 'number') {
+                    date = new Date();
+                    date.setTime(date.getTime() + (options.expires * 24 * 60 * 60 * 1000));
+                } else {
+                    date = options.expires;
+                }
+                expires = '; expires=' + date.toUTCString(); // use expires attribute, max-age is not supported by IE
+            }
+            // CAUTION: Needed to parenthesize options.path and options.domain
+            // in the following expressions, otherwise they evaluate to undefined
+            // in the packed version for some reason...
+            var path = options.path ? '; path=' + (options.path) : '';
+            var domain = options.domain ? '; domain=' + (options.domain) : '';
+            var secure = options.secure ? '; secure' : '';
+            document.cookie = [name, '=', encodeURIComponent(value), expires, path, domain, secure].join('');
+            return value;
+        } else { // only name given, get cookie
+            var cookieValue = null;
+            if (document.cookie && document.cookie != '') {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = jQuery.trim(cookies[i]);
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    };
+})(jQuery);
+
+//=============================jquery crossPageJs plugin=============================
+(function ($) {
+
+    function parseStringToJs(target) {
+        var array = target.split('.'), result = window;
+        if (array[0] == 'window') array.shift();
+        for (var i = 0; i < array.length; i++) {
+            if (result) result = result[array[i]];
+        }
+        return result;
+    }
+
+    function isAnonymousFunction(jsString) {
+        var pattern = /^function\s*\(.*\)\s*\{.*\}\s*$/;
+        return pattern.test(jsString);
+    }
+
+    /**
+    * Excute javascript in different page.
+    *
+    * To store a value: 
+    * @example $.crossPageJs('obj_id', {msg:'hello, world', array:[true, 1]});
+    * To store a autorun js: 
+    * @example $.crossPageJs('$.util.somefunction', arg1, arg2);
+    * @example $.crossPageJs('function(msg){alert(msg);}', 'someanoymous function arguments');
+    * 
+    * To fetch stored value:
+    * @example var value = $.crossPageJs('obj_id');
+    * To auto run all stored functions
+    * @example $.crossPageJs();
+    */
+    $.crossPageJs = function () {
+        if (!$.cookie) throw "crossPageJs: jQuery cookie plugin not included.";
+        var isFunction = $.isFunction(arguments[0]),
+            name = isFunction ? arguments[0].toString() : arguments[0],
+            args = Array.prototype.slice.call(arguments, 1),
+            arr = JSON.parse($.cookie('cross_js')) || [],
+            retVal;
+        if (arguments.length > 0 && typeof name != 'string') throw 'Invalid argument type!';
+
+        var m = {
+            fetch: function () {
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i][0] == name) {
+                        var data = arr.splice(i, 1)[0].slice(1);
+                        return data.length > 1 ? data : data[0];
+                    }
+                }
+                return undefined;
+            },
+            store: function () {
+                return arr.push([].concat(name, args));
+            },
+            excute: function () {
+                for (var i = arr.reverse().length - 1; i >= 0; i--) {
+                    name = arr[i][0];
+                    var isAnonymousFn = isAnonymousFunction(name),
+                        isNamedFn = $.isFunction(parseStringToJs(name));
+                    if (isAnonymousFn) {
+                        eval('fn=' + name).apply(null, arr.splice(i, 1)[0].slice(1));
+                    } else if (isNamedFn) {
+                        var pos = name.lastIndexOf('.'),
+                            thisArg = pos > 0 ? parseStringToJs(name.substr(0, pos)) : null;
+                        parseStringToJs(name).apply(thisArg, arr.splice(i, 1)[0].slice(1));
+                    }
+                }
+                return arr.reverse().length;
+            }
+        };
+
+        if (!name) {
+            retVal = m.excute();
+        } else {
+            isFunction = isFunction || isAnonymousFunction(name) || $.isFunction(parseStringToJs(name));
+            retVal = (isFunction || args.length > 0) ? m.store() : m.fetch();
+        }
+        $.cookie('cross_js', arr.length ? JSON.stringify(arr) : null, { path: '/' });
+        return retVal;
+    };
+
+    $(function () { $.crossPageJs(); });
+
+})(jQuery);
+
+//=============================jquery grayscale plugin=============================
+(function ($) {
+    /* Modernizr 2.8.3 (Custom Build) | MIT & BSD
+     * Build: http://modernizr.com/download/#-inlinesvg-svg_filters
+     */
+    var Modernizr = function (e, t, n) { function E(e) { a.cssText = e } function S(e, t) { return E(c.join(e + ";") + (t || "")) } function x(e, t) { return typeof e === t } function T(e, t) { return !!~("" + e).indexOf(t) } function N(e, t, r) { for (var i in e) { var s = t[e[i]]; if (s !== n) { if (r === false) return e[i]; if (x(s, "function")) { return s.bind(r || t) } return s } } return false } var r = "2.8.3", i = {}, s = t.documentElement, o = "modernizr", u = t.createElement(o), a = u.style, f, l = {}.toString, c = " -webkit- -moz- -o- -ms- ".split(" "), h = { svg: "http://www.w3.org/2000/svg" }, p = {}, d = {}, v = {}, m = [], g = m.slice, y, b = {}.hasOwnProperty, w; if (!x(b, "undefined") && !x(b.call, "undefined")) { w = function (e, t) { return b.call(e, t) } } else { w = function (e, t) { return t in e && x(e.constructor.prototype[t], "undefined") } } if (!Function.prototype.bind) { Function.prototype.bind = function (t) { var n = this; if (typeof n != "function") { throw new TypeError } var r = g.call(arguments, 1), i = function () { if (this instanceof i) { var e = function () { }; e.prototype = n.prototype; var s = new e; var o = n.apply(s, r.concat(g.call(arguments))); if (Object(o) === o) { return o } return s } else { return n.apply(t, r.concat(g.call(arguments))) } }; return i } } p["inlinesvg"] = function () { var e = t.createElement("div"); e.innerHTML = "<svg/>"; return (e.firstChild && e.firstChild.namespaceURI) == h.svg }; for (var C in p) { if (w(p, C)) { y = C.toLowerCase(); i[y] = p[C](); m.push((i[y] ? "" : "no-") + y) } } i.addTest = function (e, t) { if (typeof e == "object") { for (var r in e) { if (w(e, r)) { i.addTest(r, e[r]) } } } else { e = e.toLowerCase(); if (i[e] !== n) { return i } t = typeof t == "function" ? t() : t; if (typeof enableClasses !== "undefined" && enableClasses) { s.className += " " + (t ? "" : "no-") + e } i[e] = t } return i }; E(""); u = f = null; i._version = r; i._prefixes = c; return i }(this, this.document);
+    Modernizr.addTest("svgfilters", function () { var e = false; try { e = typeof SVGFEColorMatrixElement !== undefined && SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_SATURATE == 2 } catch (t) { } return e });
+    Modernizr.addTest("cssfilters", function () { var e = document.createElement("div"); e.style.cssText = Modernizr._prefixes.join("filter" + ":blur(2px); "); return !!e.style.length && (document.documentMode === undefined || document.documentMode > 9) });
+
+    var pluginName = 'grayscale',
+        defaults = {
+            fade: false,
+            classes: {
+                name: 'grayscale',
+                fade: 'fade'
+            }
+        };
+
+    function plugin(element, options) {
+        options = options || {};
+
+        var classes = options.classes || {};
+        var fadeClass = classes.fade || defaults.classes.fade;
+        options.fade = options.fade || $(element).hasClass(fadeClass);
+
+        this.element = element;
+        this.settings = $.extend({}, defaults, options);
+        this._name = pluginName;
+        this.init();
+    }
+
+    plugin.prototype = {
+
+        init: function () {
+            var element = $(this.element);
+            if (!element.hasClass(this.settings.classes.name)) {
+                element.addClass(this.settings.classes.name);
+            }
+            if (!Modernizr.cssfilters &&
+              Modernizr.inlinesvg &&
+              Modernizr.svgfilters
+            ) {
+                if (this.cssFilterDeprecated(element)) {
+                    this.switchImage(element);
+                }
+            }
+        },
+
+        cssFilterDeprecated: function (element) {
+            return element.css('filter') === 'none';
+        },
+
+        elementType: function (element) {
+            var type;
+
+            if (element.prop('tagName') === 'IMG') {
+                type = 'Img';
+            } else {
+                type = 'Bg';
+            }
+
+            return type;
+        },
+
+        getComputedStyle: function (element) {
+            var computedStyle = window.getComputedStyle(element, null),
+                styles = {};
+
+            for (var i = 0, length = computedStyle.length; i < length; i++) {
+                var prop = computedStyle[i];
+                var val = computedStyle.getPropertyValue(prop);
+                styles[prop] = val;
+            }
+
+            return styles;
+        },
+
+        extractUrl: function (backgroundImage) {
+            var startRegex = /^url\(["']?/;
+            var endRegex = /["']?\)$/;
+            var url = backgroundImage.replace(startRegex, '')
+                                   .replace(endRegex, '');
+
+            return url;
+        },
+
+        positionToNegativeMargin: function (backgroundPosition) {
+            var x = backgroundPosition.match(/^(-?\d+\S+)/)[0];
+            var y = backgroundPosition.match(/\s(-?\d+\S+)$/)[0];
+            var margin = 'margin:' + y + ' 0 0 ' + x;
+
+            return margin;
+        },
+
+        getBgSize: function (url, backgroundSize) {
+            var img,
+                ratio,
+                defaultW,
+                w,
+                defaultH,
+                h,
+                size;
+
+            img = new Image();
+            img.src = url;
+
+            if (backgroundSize !== 'auto' && backgroundSize !== 'cover' && backgroundSize !== 'contain' && backgroundSize !== 'inherit') {
+                var $element = $(this.element);
+
+                ratio = img.width / img.height;
+                w = parseInt((backgroundSize.match(/^(\d+)px/) || [0, 0])[1]);
+                h = parseInt((backgroundSize.match(/\s(\d+)px$/) || [0, 0])[1]);
+                defaultW = $element.height() * ratio;
+                defaultH = $element.width() / ratio;
+                w = w || defaultW;
+                h = h || defaultH;
+            }
+
+            if (w || h) {
+                size = {
+                    width: w,
+                    height: h
+                };
+            } else {
+
+                size = {
+                    width: img.width,
+                    height: img.height
+                };
+            }
+
+            return size;
+        },
+
+        getParams: function (element) {
+            var type = this.elementType(element);
+            return this['get' + type + 'Params'](element);
+        },
+
+        getImgParams: function (element) {
+            var params = {};
+
+            params.styles = this.getComputedStyle(element[0]);
+
+            params.svg = {
+                url: element[0].src,
+                width: params.styles.width.replace('px', ''),
+                height: params.styles.height.replace('px', ''),
+                offset: ''
+            };
+
+            return params;
+        },
+
+        getBgParams: function (element) {
+            var params = {};
+
+            var url = this.extractUrl(element.css('background-image'));
+            var bgSize = this.getBgSize(url, element.css('background-size'));
+            var offset = this.positionToNegativeMargin(element.css('background-position'));
+
+            params.styles = this.getComputedStyle(element[0]);
+
+            params.svg = $.extend(
+              { url: url },
+              bgSize,
+              { offset: offset }
+            );
+
+            return params;
+        },
+
+        setFadeStyles: function (styles, url) {
+            styles['background-image'] = 'url("' + url + '")';
+            delete styles['filter'];
+
+            return styles;
+        },
+
+        switchImage: function (element) {
+            var params,
+                classes,
+                template;
+
+            params = this.getParams(element);
+
+            classes = this.settings.fade ? this.settings.classes.fade : '';
+
+            template = $(
+              '<div class="grayscale-replaced ' + classes + '">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" id="svgroot" viewBox="0 0 ' + params.svg.width + ' ' + params.svg.height + '" width="' + params.svg.width + '" height="' + params.svg.height + '" style="' + params.svg.offset + '">' +
+                  '<defs>' +
+                    '<filter id="gray">' +
+                      '<feColorMatrix type="matrix" values="0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0.3333 0.3333 0.3333 0 0 0 0 0 1 0" />' +
+                    '</filter>' +
+                  '</defs>' +
+                  '<image filter="url(&quot;#gray&quot;)" x="0" y="0" width="' + params.svg.width + '" height="' + params.svg.height + '" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="' + params.svg.url + '" />' +
+                '</svg>' +
+              '</div>');
+
+            params.styles['display'] = 'inline-block';
+            params.styles['overflow'] = 'hidden';
+            params.styles['overflow-x'] = 'hidden';
+            params.styles['overflow-y'] = 'hidden';
+            params.styles = this.setFadeStyles(params.styles, params.svg.url);
+
+            template.css(params.styles);
+
+            element.replaceWith(template);
+        }
+    };
+
+    $.fn[pluginName] = function (options) {
+        this.each(function () {
+            if (!$.data(this, 'plugin_' + pluginName)) {
+                $.data(this, 'plugin_' + pluginName, new plugin(this, options));
+            }
+        });
+        return this;
+    };
+
+    $(window).on('load', function () {
+        $('.' + defaults.classes.name)[pluginName]();
+    });
+
+})(jQuery);
+
+/*********************************************************************************************************
+*  Jquery Plugins                      ---                      Common Utils
+**********************************************************************************************************
+*/
+(function ($) {
+
+    if (!$.util) $.util = {};
+
+    /**
+    * $.submitForm(url|settings, data)
+    */
+    $.util.submitForm = function (options, data) {
+        var settings = typeof options === 'string' ? { action: options } : options,
+            form = $('<form method="post" />').attr(settings);
+
+        $.each(data, function (key, value) {
+            var input = $('<input type="hidden">');
+            input.attr({ 'id': key, 'name': key, 'value': value });
+            form.append(input);
+        });
+
+        $(document.body).append(form);
+        form.submit();
+    };
+
+    /**
+    * $.util.first(array, [callback(index,element)])
+    * get the first element from array. 
+    *
+    */
+    $.util.first = function (collection, predicate) {
+        if (collection && collection.length == 0) {
+            return null;
+        }
+        if (typeof predicate !== 'function') {
+            return collection[0];
+        }
+        for (var i = 0; i < collection.length; i++) {
+            var ele = collection[i];
+            if (predicate.call(ele, i, ele)) {
+                return ele;
+            }
+        }
+        return null;
+    };
+
+    /**
+    * $.util.deparam('?id=1&name=brian') will return  {id:1,name:'brian'}
+    * parse URL query string to object, opposite function to $.param()
+    */
+    $.util.deparam = function(queryString) {
+        if (!queryString || typeof queryString !== 'string' || queryString.indexOf('?') === -1) return null;
+        queryString = queryString.split('?')[1];
+        var retValue = {},
+            querys = queryString.split('&'),
+            pair, i;
+        for (i = 0; i < querys.length; i++) {
+            pair = querys[i].split('=', 2);
+            if (pair.length != 2) continue;
+            retValue[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1].replace(/\+/g, ' '));
+        }
+        return retValue;
+    };
+
+    /**
+    * get some properties from other objects or extend some objects. 
+    *
+    * copy properties to a new object:
+    *     $.util.copy(['id','name'], {id:1,name:'brian',age:28}) will return  {id:1,name:'brian'}
+    * extend objects:
+    *     $.util.copy({id:1,name:'brian',age:28}, {id:2}) will return  {id:2,name:'brian',age:28}
+    */
+    $.util.copy = function(/*[keyArray], objects...*/) {
+        var keyArray = arguments[0],
+            keyMode = $.isArray(keyArray) && keyArray.length > 0,
+            objArray = Array.prototype.slice.call(arguments, keyMode ? 1 : 0);
+        objArray.unshift({}); //insert empty object to prevent arguments being updated.
+        var target = $.extend.apply(null, objArray);
+        if (!keyMode) return target;
+        var result = {};
+        for (var key in target) {
+            if (target.hasOwnProperty(key) && $.inArray(key, keyArray) > -1) {
+                result[key] = target[key];
+            }
+        }
+        return result;
+    };
+
+    $.util.alert = function (msg) {
+        if (!msg) return;
+        if (typeof msg !== 'string') msg = JSON.stringify(msg, null, '\t');
+        msg = msg.replace(/(\\r)?(\\n)/g, '\r\n');
+        if ($.isFunction(window.showMessagebox)) {
+            msg = msg.replace(/\t/g, '&nbsp;&nbsp;').replace(/\r?\n/g, '<br />');
+            window.showMessagebox(msg);
+        } else {
+            alert(msg);
+        }
+    };
+})(jQuery);
+
+/*********************************************************************************************************
+*  Jquery Plugins                      ---                      Common fn Extensions
+**********************************************************************************************************
+*/
+(function ($) {
+
+    /// <summary>
+    /// 	Returns the highest (top-most) zIndex in the document
+    /// 	(minimum value returned: 0).
+    /// </summary>	
+    /// <param name="selector" type="String" optional="true">
+    /// 	(optional, default = "*") jQuery selector specifying
+    /// 	the elements to use for calculating the highest zIndex.
+    /// </param>
+    /// <returns type="Number">
+    /// 	The minimum number returned is 0 (zero).
+    /// </returns>
+    $.topZIndex = function (selector) {
+        return Math.max(0, Math.max.apply(null, $.map(((selector || "*") === "*") ? $.makeArray(document.getElementsByTagName("*")) : $(selector),
+            function (v) {
+                return parseFloat($(v).css("z-index")) || null;
+            }
+        )));
+    };
+
+    /// <summary>
+    /// 	Increments the CSS z-index of each element in the matched set
+    /// 	to a value larger than the highest current zIndex in the document.
+    /// 	(i.e., brings all elements in the matched set to the top of the
+    /// 	z-index order.)
+    /// </summary>	
+    /// <param name="opt" type="Object" optional="true">
+    /// 	(optional) Options, with the following possible values:
+    /// 	increment: (Number, default = 1) increment value added to the
+    /// 		highest z-index number to bring an element to the top.
+    /// 	selector: (String, default = "*") jQuery selector specifying
+    /// 		the elements to use for calculating the highest zIndex.
+    /// </param>
+    /// <returns type="jQuery" />
+    $.fn.topZIndex = function (opt) {
+        // Do nothing if matched set is empty
+        if (this.length === 0) {
+            return this;
+        }
+
+        opt = $.extend({ increment: 1 }, opt);
+
+        // Get the highest current z-index value
+        var zmax = $.topZIndex(opt.selector),
+            inc = opt.increment;
+
+        // Increment the z-index of each element in the matched set to the next highest number
+        return this.each(function () {
+            this.style.zIndex = (zmax += inc);
+        });
+    };
+
+    $.fn.center = function () {
+        return this.each(function () {
+            var $this = $(this);
+            $this.css("position", "absolute");
+            $this.css("top", ($(window).height() - $this.outerHeight()) / 2 + $(window).scrollTop() + "px");
+            $this.css("left", ($(window).width() - $this.outerWidth()) / 2 + $(window).scrollLeft() + "px");
+        });
+    };
+
+    $.fn.hoverClass = function (className) {
+        return this.each(function () {
+            $(this).hover(
+                function () { $(this).addClass(className); },
+                function () { $(this).removeClass(className); }
+            );
+        });
+    };
+
+    /**
+    * Returns get parameters.
+    *
+    * If the desired param does not exist, null will be returned
+    * please note URL is case insensitve. 
+    *
+    * To get the document params:
+    * @example value = $(document).getUrlParam();
+    * @example value = $(document).getUrlParam("paramName");
+    * @example value = $(document).getUrlParam("paramName1","paramName2");
+    * 
+    * To get the params of a html-attribut (uses src attribute)
+    * @example value = $('#imgLink').getUrlParam("paramName");
+    */
+    $.fn.getUrlParam = function(/*queryKey...*/) {
+
+        function getValue(key, obj) {
+            for (var prop in obj) {
+                if (obj.hasOwnProperty(prop) && prop.toLowerCase() === key.toLowerCase()) return obj[prop];
+            }
+            return null;
+        }
+
+        var curSrc = this.attr('nodeName') == '#document' ? document.location.href : (this.attr("src") || this.attr("href"));
+        var queryString = $.util.deparam(curSrc);
+        if (!queryString) return null;
+        if (arguments.length === 0) return queryString;
+        if (arguments.length === 1) return getValue(arguments[0], queryString);
+        var result = {};
+        for (var i = 0; i < arguments.length; i++) {
+            result[arguments[i]] = getValue(arguments[i], queryString);
+        }
+        return result;
+    };
+
+    /**
+  * Returns bool value.
+  *
+  * Judge current element is the child element of the target element 
+  */
+
+    $.fn.isChildAndSelfOf = function (target) {
+        return (this.closest(target).length > 0);
+    };
+
+})(jQuery);
+
+/*********************************************************************************************************
+*  Jquery Plugins                      ---                      Ajax Settings & Extensions
+**********************************************************************************************************
+*/
+(function ($) {
+
+    $.getScript = function (url, callback, cache) {
+        $.ajax({
+            type: "GET",
+            url: url,
+            success: callback,
+            dataType: "script",
+            cache: cache || true
+        });
+    };
+
+    $.ajax.redirect = function (jqXhr) {
+        if (!jqXhr || !$.isFunction(jqXhr.getResponseHeader)) return;
+        var ajaxRedirectUrl = jqXhr.getResponseHeader('AjaxRedirectUrl');
+        if (ajaxRedirectUrl) window.location.href = ajaxRedirectUrl;
+    };
+
+    $.ajax.serverInernalError = function (jqXhr) {
+        try {
+            if (!jqXhr || !jqXhr.responseText) return;
+            var data = JSON.parse(jqXhr.responseText);
+            if (!data) return;
+            if (data.code == '500' && data.debug) {
+                $.util.alert(data);
+                return;
+            }
+        } catch (e) {
+        }
+    };
+
+    $.ajaxPrefilter(function (options, _, jqXhr) {
+        if (options.ajaxRedirect) {
+            jqXhr.error($.ajax.redirect);
+        }
+        if (options.ajaxServerInternalError) {
+            jqXhr.error($.ajax.serverInernalError);
+        }
+    });
+
+    //Global settings for all ajax request, could be cloesd in each ajax call
+    $.ajaxSetup({ ajaxRedirect: true, ajaxServerInternalError: true });
+
+    //Disable ajax cache for MSIE
+    if ($.browser.msie) $.ajaxSetup({ cache: false });
+})(jQuery);

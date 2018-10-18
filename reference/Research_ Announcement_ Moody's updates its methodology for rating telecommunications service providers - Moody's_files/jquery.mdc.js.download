@@ -1,0 +1,1273 @@
+/* Mdc Global Functions */
+var timeoutMsg = "The request timed out, please try again.";
+var cancelRequestMsg = "The request has been canceled.";
+
+jQuery.mdc = {
+    PREVIOUS_PAGE_COOKIE_NAME: "PreviousPage",
+    HOME_PAGE_URL: "/",
+    TYPE_AHEAD_COOKIE_NAME: "typeAheadUrl",
+    LOGOUT_COUNTDOWN_CALLBACK: null,
+    createForm: function (theAction, theFormType) { return $('<form></form>').attr('name', 'mdcNewForm').attr('method', theFormType).attr('action', theAction); },
+    createHiddenField: function (theName, theValue) {
+        var aHiddenField = $('<input type="hidden" name="' + theName + '" />');
+        aHiddenField.val(theValue);
+        return aHiddenField[0];
+    },
+    submitForm: function (theAction, theMethod, theArguments) {
+        var aForm = this.createForm(theAction, theMethod);
+        for (var i = 1; i < theArguments.length; i++) {
+            var aValue = $('#' + theArguments[i]).attr('type') == 'checkbox' ? $('#' + theArguments[i])[0].checked : $('#' + theArguments[i]).val();
+            aForm.append(this.createHiddenField(theArguments[i], aValue));
+        }
+        aForm.appendTo($(document.body)).submit();
+    },
+    submitGetForm: function (theAction) { this.submitForm(theAction, "GET", arguments); },
+    submitQuickSearch: function (theAction, theMethod, theArguments) {
+        var anAction = "/QuickSearch~/";
+        for (var i = 1; i < theArguments.length; i++) {
+            var aValue = $('#' + theArguments[i]).attr('type') == 'checkbox' ? $('#' + theArguments[i])[0].checked : $('#' + theArguments[i]).val();
+            anAction += aValue + "/";
+        }
+        anAction += "qs";
+        var aForm = this.createForm(anAction, theMethod);
+        aForm.appendTo($(document.body)).submit();
+    },
+    submitGetQuickSearch: function (theAction) { this.submitQuickSearch(theAction, "GET", arguments); },
+    submitPostForm: function (theAction) { this.submitForm(theAction, "POST", arguments); },
+    submitPostFormArray: function (theAction, theArrysString) {
+        var aArray = theArrysString.split(',');
+        this.submitForm(theAction, "POST", aArray);
+    },
+    validateSearchTerm: function (theSearchInput, theOriginalValue) {
+        if ((theSearchInput).attr('value') == theOriginalValue) $(theSearchInput).attr('value', '');
+        return true;
+    },
+    validateSearch: function (theSearchInput) {
+        if (theSearchInput.value == $(theSearchInput).attr('mdcSearchValue') || theSearchInput.value == $(theSearchInput).attr('maSearchValue')) { theSearchInput.value = ''; }
+    },
+    validateSearchWithinTerm: function (theSearchInput, theOriginalValue) {
+        if ((theSearchInput).attr('value') == theOriginalValue) $(theSearchInput).attr('value', '');
+        return true;
+    },
+    encodeUrl: function (theUrl) {
+        if (typeof encodeURIComponent == "function") return encodeURIComponent(theUrl);
+        return escape(theUrl);
+    },
+    parseUrl: function (url) {
+        var a = document.createElement('a');
+        a.href = url;
+        return {
+            params: (function () {
+                var ret = {},
+                    seg = a.search.replace(/^\?/, '').split('&'),
+                    len = seg.length, i = 0, s;
+                for (; i < len; i++) {
+                    if (!seg[i]) { continue; }
+                    s = seg[i].split('=');
+                    ret[s[0]] = s[1];
+                }
+                return ret;
+            })(),
+            hash: a.hash.replace('#', ''),
+            path: url.indexOf('?') < 0 ? url : url.substr(0, url.indexOf('?'))
+        };
+    },
+    replaceUrlParams: function (url, newParams) {
+        var myUrl = $.mdc.parseUrl(url);
+        for (var x in newParams) {
+            var hasInMyUrlParams = false;
+            for (var y in myUrl.params) {
+                if (x.toLowerCase() == y.toLowerCase()) {
+                    myUrl.params[y] = newParams[x];
+                    hasInMyUrlParams = true;
+                    break;
+                }
+            }
+            if (!hasInMyUrlParams) {
+                myUrl.params[x] = newParams[x];
+            }
+        }
+
+        var result = myUrl.path + "?";
+        for (var p in myUrl.params) {
+            result += (p + "=" + myUrl.params[p] + "&");
+        }
+        if (result.substr(result.length - 1) == "&") {
+            result = result.substr(0, result.length - 1);
+        }
+        if (myUrl.hash != "") {
+            result += "#" + myUrl.hash;
+        }
+        return result;
+    },
+    searchWithinSearch: function (theSearchUrl, theSearchKey) { document.location = theSearchUrl + this.encodeUrl((theSearchUrl.charAt(theSearchUrl.length - 1) == '=' ? "" : "|") + theSearchKey.val()); },
+    RemoveWithInSearchItem: function (theSearchItem) {
+        var local = "" + document.location;
+        var pos = local.indexOf("?kw=");
+        if (pos != -1) {
+            var orgurl = local.substr(0, pos);
+            var orgkws = local.substr(pos + 4);
+            var newkws = "?kw=";
+            var tmpos = orgkws.indexOf("|");
+            while (tmpos != -1) {
+                var tpkw = orgkws.substr(0, tmpos);
+                if (tpkw != theSearchItem) newkws += (tpkw + "|");
+                orgkws = orgkws.substr(tmpos + 1);
+                tmpos = orgkws.indexOf("|");
+                if ((tmpos == -1) && (orgkws != theSearchItem)) newkws += (orgkws + "|");
+            }
+            newkws = newkws.substr(0, newkws.length - 1);
+            document.location = orgurl + (newkws.length < 4 ? "" : newkws);
+        }
+    },
+    tryAnotherSearch: function (theSearchUrl) { document.location = theSearchUrl + this.encodeUrl($("#mdcTryAnotherSearchText").val()); },
+    typeAhead: function (theEvent, theSearchKey, theContextCountry) {
+        if (theEvent.which == 27) {
+            $.mdc.typeAheadIndex = -1;
+            $("#mdcTypeAheadContainer a").removeClass('mdcTypeAheadSelected');
+            return;
+        }
+        if (theEvent.which != 38 && theEvent.which != 40) {
+            if (theSearchKey.length >= 1) {
+                //var url = '/page/typeahead.aspx?tt=' + this.encodeUrl(theSearchKey) + '&cy=' + theContextCountry;
+                var url = '/typeahead/' + this.encodeUrl(theSearchKey);
+                this.microsoftAjax(url, "GET", function (theReturnHtml, textStatus) {
+                    if (mdcLastSearchKeyWord != theSearchKey) return;
+                    var aStartIndex = theReturnHtml.search("<div id=\"mdcTypeAheadContainer\"");
+                    var aEndIndex = theReturnHtml.search("</body>");
+                    if (aStartIndex == -1) {
+                        $("#mdcTypeAheadSpace").html("");
+                        $("#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight").addClass('mdcHide');
+                    } else {
+                        $("#mdcTypeAheadSpace").html(theReturnHtml.substring(aStartIndex, aEndIndex));
+                        $("#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight").removeClass('mdcHide');
+                    }
+                    $('#mdcTypeAheadContainer tr').click(function () {
+                        $.mdc.pushPreviousPageCookie();
+                        var aUrl = $(this).find("td").children().eq(0).val();
+                        document.location = aUrl;
+                        AddWebtrendForTypeahead(this);
+                    });
+                    $('#mdcTypeAheadContainer tr').hover(function () { $(this).addClass('mdcTypeAheadSelected'); }, function () { $(this).removeClass('mdcTypeAheadSelected'); });
+                    $('#mdcTypeAheadSpace').prepend('<iframe scrolling="no" frameborder="0"/>');
+                    $('#mdcTypeAheadSpace iframe').height($('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width());
+                    $('#mdcTypeAheadSpaceBottom').css('top', $('#mdcTypeAheadSpace').position().top + $('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width() - 8);
+                    $('#mdcTypeAheadSpaceRight').css('left', $('#mdcTypeAheadSpace').position().left + $('#mdcTypeAheadSpace').width()).height($('#mdcTypeAheadSpace').height());
+                    $('#typeAheadMoreLinkContainer').hover(function () { $(this).addClass('typeAheadMoreLinkSelected'); }, function () { $(this).removeClass('typeAheadMoreLinkSelected'); });
+                });
+            } else {
+                $('#mdcTypeAheadSpace').html('');
+                $("#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight").addClass('mdcHide');
+            }
+        }
+    },
+    microsoftAjax: function (url, type, successCallback) {
+        $.ajax({
+            url: url,
+            type: type,
+            cache: false,
+            async: true,
+            success: function (html, textStatus) {
+                var regExp = /^\d+\|pageRedirect\|\|(.+)\|$/;
+                var match = regExp.exec(html);
+                if (match == null) {
+                    successCallback(html, textStatus);
+                } else {
+                    $('#mdcTypeAheadSpace').html('');
+                    $("#mdcTypeAheadSpace").addClass('mdcHide');
+                }
+            },
+            beforeSend: function (request) {
+                request.setRequestHeader("X-MicrosoftAjax", "Delta=true");
+            }
+        });
+    },
+    readCookie: function (theCookieName) {
+        var aCookie = "" + document.cookie;
+        var aFirstIndex = aCookie.indexOf(theCookieName + "=");
+        if (aFirstIndex == -1 || theCookieName == "") return "";
+        var aEndIndex = aCookie.indexOf(';', aFirstIndex);
+        if (aEndIndex == -1) aEndIndex = aCookie.length;
+        return aCookie.substring(aFirstIndex + theCookieName.length + 1, aEndIndex);
+    },
+    writeCookie: function (theCookieName, theCookieValue) {
+        var aExpireTime = new Date(new Date().getTime() + 1000 * 60 * 30);
+        document.cookie = theCookieName + "=" + theCookieValue + ";expires=" + aExpireTime.toGMTString() + ";path=/;secure";
+    },
+    pushPreviousPageCookie: function () {
+        var aCookieValueArray = this.readCookie(this.PREVIOUS_PAGE_COOKIE_NAME).split("__", 9);
+        if (aCookieValueArray.length == 1 && aCookieValueArray[0].length == 0) {
+            aCookieValueArray = [this.encodeUrl(window.location.pathname + window.location.search)];
+        } else {
+            aCookieValueArray = [this.encodeUrl(window.location.pathname + window.location.search)].concat(aCookieValueArray);
+        }
+        this.writeCookie(this.PREVIOUS_PAGE_COOKIE_NAME, aCookieValueArray.join("__"));
+    },
+    clearPreviousPageCookie: function () {
+        var aCookieValueArray = this.readCookie(this.PREVIOUS_PAGE_COOKIE_NAME).split("__");
+        this.writeCookie(this.PREVIOUS_PAGE_COOKIE_NAME, aCookieValueArray.slice(1).join("__"));
+    },
+    researchShowAllChangeFilter: function (theSelect) {
+        var aIndex = theSelect.selectedIndex;
+        var aRequestUrl = theSelect.options[aIndex].value;
+        document.location = aRequestUrl;
+    },
+    setLoginErrorMessage: function (theMessage) {
+        $("#mdcLoginErrorMsgControl").html(theMessage);
+        $('#mdcLoginErrorMsgControl').removeClass('mdcHide');
+    },
+    validateLogin: function () {
+        var isNameValidate = true;
+        if (!$('#mdcUserNameWrap>input').val()) {
+            $('#UserNameRequired').css('visibility', 'visible');
+            isNameValidate = false;
+        }
+        if (isNameValidate) $('#UserNameRequired').css('visibility', 'hidden');
+        var isPasswordValidate = true;
+        if (!$('#mdcPasswordWrap>input').val()) {
+            $('#PasswordRequired').css('visibility', 'visible');
+            isPasswordValidate = false;
+        }
+        if (isPasswordValidate) $('#PasswordRequired').css('visibility', 'hidden');
+        if (isNameValidate && isPasswordValidate) {
+            $('#mdcLoginErrorMsgControl').addClass('mdcHide')
+        } else {
+            this.setLoginErrorMessage('A User name and password are required for access to Moodys.com');
+        }
+        return isNameValidate && isPasswordValidate;
+    },
+    timeOutRedirect: function (theRedirectUrl, theIndicator) {
+        var theSecond = theIndicator.text();
+        theSecond--;
+        if (theSecond < 0) {
+            clearInterval($.mdc.LOGOUT_COUNTDOWN_CALLBACK);
+            document.location = theRedirectUrl;
+        } else {
+            theIndicator.text(theSecond + '');
+        }
+    },
+    mdcPopup: function (theUrl) {
+        newwindow = window.open(theUrl, '', 'height=400,width=150,scrollbars=1,resizable=1', 0);
+        if (window.focus) {
+            newwindow.focus()
+        }
+        ;
+        return false;
+    },
+    GetRelativeUrl: function (url) {
+        url = unescape(url);
+        var rUrl = url.replace(/https?:\/\//i, "");
+        rUrl = rUrl.substring(rUrl.indexOf("\/"));
+        return escape(rUrl);
+    },
+    CheckExpire: function (theData) {
+        var redirExp = /\d+\|pageRedirect\|\|(.+)\|$/;
+        var anchorUrl = ["ReturnUrl=", "Source="];
+        var match = redirExp.exec(theData);
+        if (match) {
+            var index = -1,
+                newloc = "",
+                oldUrl = this.GetRelativeUrl(window.location);
+            for (var i = 0; i < anchorUrl.length; i++) {
+                index = match[1].lastIndexOf(anchorUrl[i]);
+                if (index != -1) {
+                    newloc = match[1].substring(0, index + anchorUrl[i].length) + oldUrl;
+                    break;
+                }
+                newloc = match[1];
+            }
+            self.location = newloc;
+            return true;
+        }
+        return false;
+    },
+    CheckChecked: function (theHiddenInput, theList) {
+        var aCheckValue = '';
+        theList.find('input:checked').each(function () { aCheckValue = aCheckValue == '' ? $(this).next().val() : aCheckValue + ";" + $(this).next().val(); });
+        theHiddenInput.val(aCheckValue);
+    },
+    IsValideDate: function (theInputStr) {
+        var re = new RegExp("^(0[1-9]|[12][0-9]|3[01])[- /.](0[1-9]|1[012])[- /.]\\d\\d\\d\\d$");
+        if (!theInputStr.match(re)) return null;
+        else {
+            var year = parseInt(theInputStr.split('/')[2], 10);
+            var month = parseInt(theInputStr.split('/')[1], 10);
+            var day = parseInt(theInputStr.split('/')[0], 10);
+            var dayobj = new Date(year, month - 1, day);
+            if (dayobj.getMonth() + 1 != month || dayobj.getFullYear() != year || dayobj.getDate() != day)
+                return null;
+            return dayobj;
+        }
+    },
+    IsEmail: function (value) {
+        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return re.test(value);
+    },
+    SelectPage: function (theUrl, theSYMBOL, thePAGEOFFSET) {
+        var thePage = thePAGEOFFSET - 1;
+        var aResult = theUrl.replace(theSYMBOL, thePage);
+        document.location = aResult;
+    },
+    SelectPageTemplate: function (theUrl, pageoffset) {
+        var theReplaceStr = '$1' + (pageoffset - 1),
+            retUrl = theUrl,
+            patterns = Array.prototype.slice.call(arguments, 2);
+        $.each(patterns, function () {
+            retUrl = retUrl.replace(this, theReplaceStr);
+        });
+        return retUrl;
+    },
+    ReplaceUrl: function (theUrlTemp, theSymbol, theUrl) {
+        var aResult = theUrlTemp.replace(theSymbol, theUrl);
+        return aResult;
+    },
+    IsValidPage: function (theInputPage, theMaxPage) {
+        if (theInputPage != parseInt(theInputPage)) {
+            return false;
+        }
+        return theInputPage > 0 && theInputPage <= theMaxPage;
+    },
+    permission: {
+        query: function (acion, argName, argValue, callback) {
+            var url = '/auth/permission/' + acion,
+                data = {};
+            data[argName] = argValue;
+            $.post(url, $.param(data, true), callback);
+        },
+        research: function (docIds, callback) {
+            if (!docIds || !docIds.length) return;
+            this.query('research', 'docIds', docIds, function (data) {
+                if (!data) return;
+                if ($.isArray(data.docPermission)) {
+                    callback(data.docPermission, data.userEntitlement);
+                }
+            });
+        }
+    },
+    changeToMaLogo: function (toMa) {
+        var $kw = $("#kw");
+        if (toMa) {
+            $("#mdcHead").addClass("ma");
+            $("#mdcToolBar").addClass("ma");
+            $kw.val($kw.attr("maSearchValue"));
+            $("#mdcLogo #mdcHomeLink").css("margin-left", "6px").css("margin-top", "16px");
+            $("#mdcLogo #mdcHomeLink img").attr("src", "/_layouts/Mdc/Images/homelinkMa.jpg");
+        } else {
+            $("#mdcHead").removeClass("ma");
+            $("#mdcToolBar").removeClass("ma");
+            $kw.val($kw.attr("mdcSearchValue"));
+            $("#mdcLogo #mdcHomeLink").css("margin-left", "7px").css("margin-top", "10px");
+            $("#mdcLogo #mdcHomeLink img").attr("src", "/_layouts/Mdc/Images/homelink.jpg");
+        }
+    }
+};
+/* Mdc Function Plugins */
+jQuery.fn.extend({
+    mdcImgHover: function () { this.attr('src', this.attr('src').replace(/O(ff|n)/, 'Over')); },
+    mdcImgOff: function () { this.attr('src', this.attr('src').replace(/Over/, 'Off')); },
+    mdcImgOn: function () { this.attr('src', this.attr('src').replace(/Over/, 'On')); },
+    mdcImgOut: function () {
+        if (this.hasClass('mdcSelected')) {
+            this.mdcImgOn();
+        } else {
+            this.mdcImgOff();
+        }
+    },
+    mdcDefaultDate: function () {
+        if ($(this).val() == '') $(this).val('dd/mm/yyyy');
+        $(this).click(function () { if ($(this).val() == 'dd/mm/yyyy') $(this).val(''); });
+    },
+    mdcInsertSeperatorImg: function (theImgName) { this.children(':not(input,script)').filter(':visible').slice(1).before('<img class="mdcImgSeperator" src="/_Layouts/Mdc/Images/Nav/' + theImgName + '"/>'); },
+    mdcInsertSeperatorImgOrBr: function (theImgName, maxWidth) {
+        var totalWidth = 0;
+        this.children(':not(input)').filter(':visible').each(function (i) {
+            totalWidth += this.offsetWidth;
+            if (i == 0) return true;
+            if (totalWidth > maxWidth) {
+                $(this).before('<br />');
+                totalWidth = 0;
+            } else {
+                $(this).before('<img class="mdcImgSeperator" src="/_Layouts/Mdc/Images/Nav/' + theImgName + '"/>');
+            }
+        });
+    },
+    mdcInsertShowMore: function (theTriggerCount) {
+        this.each(function () {
+            var aChildList = $(this).children('li');
+            if (aChildList.length > (theTriggerCount + 2)) {
+                aChildList.slice(theTriggerCount).addClass('mdcMoreItem');
+                aChildList.filter(':last').css('display', 'block');
+            }
+        });
+    },
+    mdcHover: function () {
+        return this.hover(
+            function () { $(this).addClass("mdcHover"); },
+            function () { $(this).removeClass("mdcHover"); }
+        );
+    },
+    mdcHide: function (isHide) {
+        if (isHide === false) return this.mdcShow();
+        return this.each(function () {
+            var $this = $(this);
+            if (!$this.hasClass('mdcHide')) {
+                $this.addClass("mdcHide");
+            }
+        });
+    },
+    mdcShow: function (isShow) {
+        if (isShow === false) return this.mdcHide();
+        return this.each(function () {
+            var $this = $(this);
+            if ($this.hasClass('mdcHide')) {
+                $this.removeClass("mdcHide");
+            }
+        });
+    },
+    hasAnyClass: function () {
+        var args = Array.prototype.slice.call(arguments);
+        for (var i = 0; i < args.length; i++) {
+            if (this.hasClass(args[i])) return true;
+        }
+        return false;
+    },
+    clickLink: function () {
+        return this.each(function () {
+            if ($.nodeName(this, 'a')) {
+                var $this = $(this);
+                if ($this.attr('onclick')) {
+                    $this.click();
+                } else {
+                    window.location = $this.attr('href');
+                }
+            }
+        });
+    },
+    mdcShowMore: function () {
+        this.parent().toggleClass('mdcExpanded');
+        if (this.parent().hasClass('mdcExpanded')) {
+            this.html('<span>Show Less</span>');
+        } else {
+            this.html('<span>Show All</span>');
+        }
+    },
+    mdcShowMoreMul: function (theShowAll, theShowLess) {
+        this.parent().toggleClass('mdcExpanded');
+        if (this.parent().hasClass('mdcExpanded')) {
+            this.html('<span>' + theShowLess + '</span>');
+        } else {
+            this.html('<span>' + theShowAll + '</span>');
+        }
+    },
+    orgFirstLineToggle: function () {
+        if ($('#mdcOrgSearchResults #mdcOrgSearchResultsBody .mdcOrgTitleRow').length > 1) {
+            $('#mdcOrgSearchResults #mdcOrgSearchResultsBody .mdcImgSwitch').first().click();
+        }
+    },
+    mdcCheckLastTab: function (theCheckSize) { if (this.length == theCheckSize) this.filter(':last').addClass('mdcTabLastItem'); },
+    mdcTriggerButtonClickInput: function (theButton, theCheckText) {
+        this.each(function () {
+            $(this).focus(function (event) { if ($(this).val() == theCheckText) $(this).val(''); }).keydown(function (event) {
+                if (event.which == 13) {
+                    theButton.click();
+                    event.preventDefault();
+                }
+            });
+        });
+    },
+    mdcTriggerSiblingClickInput: function (theCheckText) {
+        this.each(function () {
+            $(this).focus(function (event) { if ($(this).val() == theCheckText) $(this).val(''); }).keydown(function (event) {
+                if (event.which == 13) {
+                    $(this).parent().find('.mdcBtn').click();
+                    event.preventDefault();
+                }
+            });
+        });
+    },
+    mdcSwitchImage: function () {
+        this.each(function () { $(this).addClass('mdcImgSwitch').hover(function () { $(this).mdcImgHover(); }, function () { $(this).mdcImgOut(); }); });
+        $(this).orgFirstLineToggle();
+    },
+    mdcSwitchImage2: function () {
+        this.each(function () { $(this).parent().parent().addClass('mdcImgSwitch').mouseover(function () { $(this).find("img").mdcImgHover(); }).mouseout(function () { $(this).find("img").mdcImgOut(); }); });
+        $(this).orgFirstLineToggle();
+    },
+    mdcSwitchBkg: function () {
+        this.each(
+            function () {
+                $(this).hover(
+                    function () { $(this).css("background-image", $(this).css("background-image").replace(/Off/, 'Over')); },
+                    function () { $(this).css("background-image", $(this).css("background-image").replace(/Over/, 'Off')); });
+            });
+    },
+    mdcAGSalesTable: function () {
+        $(this).each(function () {
+            $(this).find("tr").hover(function () { $(this).addClass("mdcHover"); }, function () { $(this).removeClass("mdcHover"); });
+        });
+    },
+    mdcTableColor: function (theHeaderFlag) {
+        $(this).each(function () {
+            var theTrs = theHeaderFlag ? $(this).find("tr:not(:first)") : $(this).find("tr");
+            theTrs.mdcColorTable(true);
+        });
+    },
+    mdcColorTable: function (theSwitchColor) {
+        $(this).mdcHoverTable();
+    },
+    mdcColorTables: function (theSwitchColor) {
+        $(this).each(function () {
+            $(this).mdcHoverTable();
+        });
+    },
+    mdcHoverTable: function () {
+        this.hover(
+            function () { $(this).addClass('mdcRowSelect'); },
+            function () { $(this).removeClass('mdcRowSelect'); });
+    },
+    mdcMaturityColorTable: function (theSwitchColor) {
+        $(this).mdcMaturityHoverTable();
+    },
+    mdcMaturityHoverTable: function () {
+        this.hover(
+            function () {
+                var aName = $(this).attr("name");
+                $("tr[name='" + aName + "']").addClass("mdcRowSelect");
+            },
+            function () {
+                var aName = $(this).attr("name");
+                $("tr[name='" + aName + "']").removeClass('mdcRowSelect');
+            });
+        this.hover(
+            function () {
+                if ($(this).next().hasClass("mdcParticiAndSoliciHighlight")) {
+                    $(this).next().addClass("mdcRowSelect");
+                }
+            },
+            function () {
+                if ($(this).next().hasClass("mdcParticiAndSoliciHighlight")) {
+                    $(this).next().removeClass("mdcRowSelect");
+                }
+            }
+        );
+        this.hover(
+            function () {
+                if ($(this).hasClass("mdcParticiAndSoliciHighlight")) {
+                    $(this).prev().addClass("mdcRowSelect");
+                }
+            },
+            function () {
+                if ($(this).hasClass("mdcParticiAndSoliciHighlight")) {
+                    $(this).prev().removeClass("mdcRowSelect");
+                }
+            }
+        );
+    },
+    mdcShowMoreText: function () {
+        this.next().css('display', 'inline');
+        this.css('display', 'none');
+        this.parents('.mdcShowLessDIV').click(function (event) {
+            if (event && event.target && $(event.target).parent('.mdcShowMore').length) return;
+            $(this).mdcShowLessText();
+        });
+    },
+    mdcShowMoreText2: function (theEvent) {
+        this.next().css('display', 'inline');
+        this.css('display', 'none');
+        this.parents('.mdcShowLessDIV').click(function () { $(this).mdcShowLessText(); });
+        jQuery.event.fix(theEvent).stopPropagation();
+    },
+    mdcShowLessText: function () {
+        this.find('.mdcShowMoreDescription').css('display', 'none');
+        this.find('.mdcShowMore').css('display', 'inline');
+        this.unbind('click');
+    },
+    mdcShowMoreLinkText: function () {
+        this.next().css('display', 'inline');
+        this.css('display', 'none');
+        $('#collapseLink').click(function (event) {
+            if (event && event.target && $(event.target).parent('.mdcShowMoreLink').length) return;
+            $(this).mdcShowLessLinkText();
+        });
+    },
+    mdcShowLessLinkText: function () {
+        $('.mdcShowMoreLinkDescription').css('display', 'none');
+        $('.mdcShowMoreLink').css('display', 'inline');
+        this.unbind('click');
+    },
+    mdcHighlightTerms: function (theHighlightTerms) {
+        if (theHighlightTerms == '') {
+            return;
+        }
+        var aHighlightTermsList = theHighlightTerms.split('##');
+        this.each(
+            function () {
+                var aTermsRegExp = aHighlightTermsList.join("|");
+                var aHighlightTermRegExp = new RegExp('(' + aTermsRegExp + ')', "gi");
+                $(this).html($(this).html().replace(aHighlightTermRegExp, '<span class="mdcHighlightText">$1</span>'));
+            }
+        );
+    },
+    SummaryHover: function (theHover) {
+        this.hover(
+            function () {
+                $(this).toggleClass('mdcSummaryHoverInfo').css('background-image', $(this).css("background-image").replace(/Off/, 'Over'));
+                $(theHover).css('display', 'block');
+            },
+            function () {
+                $(this).removeClass('mdcSummaryHoverInfo').css('background-image', $(this).css("background-image").replace(/Over/, 'Off'));
+                ;
+                $(theHover).css('display', 'none');
+            }
+        );
+    },
+    CheckMinHeight: function (theRightBlock) {
+        if ($(this).css('height') < $(theRightBlock).css('height')) {
+            $(this).css('min-height', $(theRightBlock).css('height'));
+        }
+    },
+    AGSaleDPSwitchTab: function () {
+        this.each(function () {
+            $(this).click(function () {
+                $(this).parent().find('span').each(function () {
+                    $(this).removeClass('mdcAGSelectedItem');
+                    $('#' + $(this).attr('associateddiv')).addClass('mdcHide');
+                });
+                $(this).toggleClass('mdcAGSelectedItem');
+                $('#' + $(this).attr('associateddiv')).removeClass('mdcHide');
+            });
+            $(this).hover(
+                function () { $(this).toggleClass('TabHover') },
+                function () { $(this).toggleClass('TabHover'); }
+            );
+        });
+    },
+    AGTabHover: function (theSelectedClassName) {
+        this.each(function () {
+            $(this).click(function () { $(this).removeClass("mdcHover"); }).hover(
+                function () {
+                    if (!$(this).hasClass(theSelectedClassName)) {
+                        $(this).addClass('mdcHover')
+                    }
+                },
+                function () {
+                    if (!$(this).hasClass(theSelectedClassName)) {
+                        $(this).removeClass('mdcHover');
+                    }
+                }
+            );
+        });
+    },
+    ShowTableRows: function (theRowNum, theColNum) {
+        var iRowCount = $(this).find('tr').length;
+        var iColCount = theColNum;
+        if (iRowCount < theRowNum) {
+            var sHtml = '';
+            for (var i = 0; i < theRowNum - iRowCount; i++) {
+                sHtml = sHtml + '<tr>';
+                for (var j = 0; j < iColCount; j++) {
+                    sHtml = sHtml + '<td>&nbsp;</td>'
+                }
+                sHtml = sHtml + '</tr>';
+            }
+            if ($(this).html()) {
+                $(this).append(sHtml)
+            }
+        }
+    },
+    showUpdateError: function (theMessage) {
+        $(this).children("div.mdcUpdate")
+            .css("background-image", "none")
+            .find("p.mdcErrorMessage").html(theMessage);
+    },
+    cancelUpdatingOn: function () {
+        var $mdcUpdate = $(this).children("div.mdcUpdate");
+        var aCounter = $mdcUpdate.attr("DispalyCounter");
+        aCounter--;
+        $mdcUpdate.attr("DispalyCounter", aCounter);
+        if (aCounter == 0)
+            $(this).css("position", "").find("div.mdcUpdate").remove();
+    },
+    updateOn: function () {
+        this.each(function () {
+            var $this = $(this),
+                $mdcUpdate = $(this).children("div.mdcUpdate");
+            if ($mdcUpdate.length > 0) {
+                var aCounter = $mdcUpdate.attr("DispalyCounter");
+                aCounter = aCounter ? aCounter : 0;
+                aCounter++;
+                $mdcUpdate.attr("DispalyCounter", aCounter);
+                return;
+            }
+            var imgMarginTop = ($this.height() - 14) / 2,
+                divCss = {
+                    width: $this.outerWidth() - 2,
+                    height: $this.height(),
+                    "background-position": "50% {0}px".format(Math.min(imgMarginTop, 40))
+                };
+            $("<div class='mdcUpdate mdcUpdateLoading' DispalyCounter='1'><iframe id='IframePopupBackground'></iframe><p class='mdcErrorMessage'></p></div>")
+                .css(divCss).appendTo($this.css("position", "relative"));
+        });
+    },
+    portfolioUpdateOn: function () {
+        this.each(function () {
+            if ($(this).children("div.mdcUpdate").length > 0) return;
+            $(this).css("position", "relative").append(
+                $("<div class='mdcUpdate mdcUpdateLoading'>" +
+                    "<p class='mdcErrorMessage'></p></div>")
+                    .css("width", $(this).width())
+                    .css("height", $(this).height() * 0.99)
+                    .css("background-position", "50% 50%")
+                    .css("opacity", "1")
+            );
+        });
+    },
+    showTabs: function () {
+        return this.each(function () {
+            $(this).hover(
+                function () {
+                    if ($(this).hasAnyClass('mdcTabSelected', 'mdcTabGray')) return;
+                    $(this).toggleClass('mdcHover');
+                },
+                function () {
+                    if ($(this).hasAnyClass('mdcTabSelected', 'mdcTabGray')) return;
+                    $(this).toggleClass('mdcHover');
+                }
+            );
+            $(this).click(function () {
+                if ($(this).hasClass('mdcTabGray')) return;
+                $(this).siblings().removeClass('mdcTabSelected');
+                $(this).removeClass('mdcHover');
+                $(this).addClass('mdcTabSelected');
+                var sId = $(this).attr('id');
+                var sDesId = sId.substring(0, sId.length - 3);
+                $('#' + sDesId).siblings().css('display', 'none');
+                $('#' + sDesId).css('display', 'block');
+            });
+        });
+    },
+    DD_FREEMOVE: 0,
+    DD_HMOVE: 1,
+    DD_VMOVE: 2,
+    ObjectDragDrop: function (theActiveArea) {
+        var me = this;
+        var clientX = 0;
+        var clientY = 0;
+        var clientTop = 0;
+        var clientLeft = 0;
+        this.moveStyle = $(this).DD_FREEMOVE;
+        this.onmousedown = function (theEvent) {
+        };
+        this.onmouseup = function (theEvent) {
+        };
+        this.onDrop = function () {
+        };
+        this.onDrag = function (theMoveLen) {
+        };
+        this.isMoved = function (theOffsetX, theOffsetY) { return { x: true, y: true } };
+        $(this).mousedown(function (e) {
+            var foo = me;
+            e = e || event;
+            document.onselectstart = function () { return false; };
+            clientX = e.clientX;
+            clientY = e.clientY;
+            clientTop = parseInt($(foo).position().top);
+            clientLeft = parseInt($(foo).position().left);
+            me.onmousedown(e);
+        });
+        theActiveArea.mousemove(function (e) {
+            var foo = me;
+            e = e || event;
+            if (clientX == 0 || clientY == 0)
+                return;
+            var mv = me.isMoved(e.clientX - clientX, e.clientY - clientY);
+            if (mv.x && me.moveStyle != $(this).DD_VMOVE) {
+                $(foo).css('left', e.clientX - clientX + clientLeft);
+                me.onDrag(e.clientX - clientX);
+            }
+            if (mv.y && me.moveStyle != $(this).DD_HMOVE) {
+                $(foo).css('top', e.clientY - clientY + clientTop);
+                me.onDrag(e.clientY - clientY);
+            }
+        });
+        theActiveArea.mouseup(function (e) {
+            if (clientX == 0 || clientY == 0)
+                return;
+            e = e || event;
+            clientX = 0;
+            clientY = 0;
+            document.onselectstart = function () { return true; };
+            me.onDrop();
+        });
+        return this;
+    },
+    SP_LEFTRIGHT: 1,
+    SP_UPDOWN: 2,
+    mdcSplit: function (theLeftOrTopObj, theSPType, theActiveArea) {
+        var me = this;
+        var width = 0;
+        var height = 0;
+        this.dragObj = (typeof theLeftOrTopObj == "string") ? $(theLeftOrTopObj) : theLeftOrTopObj;
+        this.activeArea = (typeof theActiveArea == "string") ? $(theActiveArea) : theActiveArea;
+        this.spType = (theSPType == $(this).SP_UPDOWN) ? $(this).SP_UPDOWN : $(this).SP_LEFTRIGHT;
+        this.dd = $(this).ObjectDragDrop(this.activeArea);
+        this.dd.moveStyle = (this.spType == $(this).SP_LEFTRIGHT) ? $(this).DD_HMOVE : $(this).DD_VMOVE;
+        this.dd.isMoved = function (theOffsetX, theOffsetY) {
+            if (me.spType == $(this).SP_LEFTRIGHT) {
+                var mw1 = parseInt($(me.dragObj).css("min-width"));
+                if (!mw1) {
+                    mw1 = 0;
+                }
+                return { x: width + theOffsetX >= mw1, y: false };
+            } else {
+                var mh1 = parseInt($(me.dragObj).css("min-height"));
+                if (!mh1) {
+                    mh1 = 0;
+                }
+                return { x: false, y: height + theOffsetY >= mh1 };
+            }
+        };
+        this.dd.onmousedown = function (theEvent) {
+            width = parseInt($(me.dragObj).width());
+            height = parseInt($(me.dragObj).height());
+        };
+        this.dd.onDrag = function (theMoveLen) {
+            if (me.spType == $(this).SP_LEFTRIGHT) {
+                me.dragObj.width(width + theMoveLen);
+            } else {
+                //fixed   ie6  bug
+                me.dragObj.parent().height('auto');
+                me.dragObj.height(height + theMoveLen);
+                if (theLeftOrTopObj.height() > theLeftOrTopObj.find('table').height())
+                    theLeftOrTopObj.find('table tr:last td').css('border-bottom', '1px solid #d1d1d1');
+                else
+                    theLeftOrTopObj.css('overflow-y', 'auto');
+            }
+        };
+        this.dd.onDrop = function () {
+            $(this).focus();
+        };
+    },
+    mdcToggle: function (fn, fn2) {
+        var args = arguments, guid = fn.guid || $.guid++, i = 0,
+        toggler = function (event) {
+            var lastToggle = ($._data(this, "lastToggle" + fn.guid) || 0) % i;
+            $._data(this, "lastToggle" + fn.guid, lastToggle + 1);
+            event.preventDefault();
+            return args[lastToggle].apply(this, arguments) || false;
+        };
+        toggler.guid = guid;
+        while (i < args.length) {
+            args[i++].guid = guid;
+        }
+        return this.click(toggler);
+    },
+    mdcBaseHover: function (theHandlerIn, theHandlerOut) {
+        return this.mouseenter(theHandlerIn).mouseleave(theHandlerOut || theHandlerIn);
+    }
+});
+
+function LogInPopUp() {
+    var loginPopUp = $('#mdcLoginPopUpControl');
+    loginPopUp.toggleClass('mdcHide');
+    $('.mdcTBUserName>input').focus();
+    if (!loginPopUp.hasClass('mdcHide'))//fix DE6139
+    {
+        loginPopUp.children("#mdcLoginPopupHint").removeClass("mdcHide");
+        if (loginPopUp.children("#mdcLoginPopUpErrorMsgControl").length > 0) {
+            loginPopUp.children("#mdcLoginPopUpErrorMsgControl").addClass("mdcHide");
+        }
+        if (loginPopUp.children("#mdcLoginPopUpErrorMsgControl_es").length > 0) {
+            loginPopUp.children("#mdcLoginPopUpErrorMsgControl_es").addClass("mdcHide");
+        }
+        if (loginPopUp.children("#mdcLoginPopUpErrorMsgControl_es-ar").length > 0) {
+            loginPopUp.children("#mdcLoginPopUpErrorMsgControl_es-ar").addClass("mdcHide");
+        }
+        if (loginPopUp.children("#mdcLoginPopUpErrorMsgControl_pt").length > 0) {
+            loginPopUp.children("#mdcLoginPopUpErrorMsgControl_pt").addClass("mdcHide");
+        }
+    }
+}
+function AddWebtrendForTypeahead(aElement) {
+    var aItemId = $(aElement).find("td").children().eq(0).data("id");
+    var aItemType = $(aElement).find("td").children().eq(0).data("type");
+
+    var aKeyWord = '';
+    if ($('#kw').val() != null) {
+        aKeyWord = "TA~" + aItemType + "~" + $('#kw').val() + "~" + aItemId + "~" + aElement.id;
+    }
+    var aDcsuri = "TypeAhead/" + aItemType + "/Slot" + aElement.id;
+    dcsMultiTrack('DCS.dcsuri', aDcsuri, 'WT.oss', aKeyWord, 'WT.oss_r', '1', 'WT.cg_n', 'SearchTA', 'WT.cg_s', '', 'WT.dl', '99', 'WT.z_previouspage', this.location.href, 'WT.pn_sku', '');
+}
+
+function TrackForTypeaheadMoreLink() {
+    dcsMultiTrack('DCS.dcsuri', 'TypeAhead/Slot9', 'WT.oss', '', 'WT.oss_r', '', 'WT.cg_s', '', 'WT.cg_n', 'SearchTA', 'WT.dl', '99', 'WT.pn_sku', '');
+}
+
+function NewSearchWithinSearch(theSearchUrl, theSearchKey) {
+    var aUrl = decodeURI(theSearchUrl);
+    var aKwPos = aUrl.indexOf("&kw=");
+    if (aKwPos !== -1) {
+        var subUrl = aUrl.substr(0, aKwPos);
+        var restSubUrl = aUrl.substr(aKwPos + 4, theSearchUrl.length);
+        var andIndex = restSubUrl.indexOf("&");
+        var searchKey = theSearchKey.val().replace(/&/g, "%26");
+
+        if (andIndex === 0) {
+            aUrl = subUrl + "&kw=" + searchKey + restSubUrl;
+        } else if (andIndex === -1) {
+            var kw = restSubUrl === "" ? searchKey : (restSubUrl + (searchKey === "" ? "" : "|" + searchKey));
+            aUrl = subUrl + "&kw=" + kw;
+        } else {
+            var restKws = restSubUrl.substr(0, andIndex);
+            restSubUrl = restSubUrl.substr(andIndex, restSubUrl.length);
+            aUrl = subUrl + "&kw=" + restKws + (searchKey === "" ? "" : "|" + searchKey) + restSubUrl;
+        }
+    }
+
+    var aPos = aUrl.indexOf("&searchfrom=");
+    if (aPos == -1) {
+        aKwPos = aUrl.indexOf("&kw=");
+        if (aKwPos != -1) {
+            var aSubUrl = aUrl.substr(0, aKwPos);
+            var aSubUrl2 = aUrl.substr(aKwPos, aUrl.length - aKwPos);
+            aSubUrl = aSubUrl + "&searchfrom=SearchWithin";
+            aSubUrl = aSubUrl + aSubUrl2;
+            aUrl = aSubUrl;
+        }
+    }
+    document.location = aUrl;
+}
+
+var lock = true;
+jQuery.mdc.IndustryOverview = {
+    loadOverviewTabWidget: function (theUrl, theConentDivId, theData) {
+        var curWidget = $('#' + theConentDivId);
+        if (window.thePage && window.thePage.locale) {
+            theUrl += '?lang=' + window.thePage.locale.Language.IsoName + '&cy=' + window.thePage.locale.Country.IsoName + '&siteapplication=1';
+        }
+        $.ajax({
+            url: theUrl,
+            type: 'POST',
+            data: {
+                DimensionInternalIDs: theData.DimensionInternalIDs,
+                CurrentUrl: theData.CurrentUrl,
+                SourceSelectedRefinements: theData.SourceSelectedRefinements,
+                Title: theData.Title,
+                OrgModel: JSON.stringify(theData.OrgModel)
+            },
+            traditional: true,
+            dataType: 'html',
+            beforeSend: function () {
+                curWidget.addClass('mdcOverviewWidgetLoad').html('<img src="/_Layouts/Mdc/Images/AjaxLoadingCircle.gif" alt="Loading"/>');
+            },
+            complete: function () {
+                curWidget.removeClass('mdcOverviewWidgetLoad');
+            },
+            success: function (html) {
+                if (html == "ShowPromotional") {
+                    curWidget.remove();
+                    $('.OverviewPromotional').mdcShow();
+                    return;
+                }
+                if ($.mdc.CheckExpire(html)) return;
+                $.mdc.IndustryOverview.OverviewTabDataReplace(theConentDivId, html);
+                curWidget.removeClass('mdcOverviewWidgetLoad');
+            },
+            error: function (jqXhr) {
+                curWidget.removeClass('mdcOverviewWidgetLoad');
+            }
+        });
+    },
+    processIniteDivs: function (data) {
+        if ($(industryWidgetJson) === null) {
+            alert('para null');
+            return;
+        }
+        $(industryWidgetJson).each(function (i) {
+            if (!industryWidgetJson[i].DisplayOnPage) {
+                return;
+            }
+
+            ////level 
+            var level = industryWidgetJson[i].LevelNumber;
+            if ($('#Level' + level).length === 0) {
+                var newTr = '<tr id="Level' + level + '"></tr>';
+                var aTableHtml = $('#industryOverviewTable').html();
+                var NewHtml = '';
+                if (aTableHtml.indexOf('</tbody>') > 0) {
+                    NewHtml = aTableHtml.replace('</tbody>', newTr + '</tbody>');
+                } else {
+                    NewHtml = aTableHtml.replace('</TBODY>', newTr + '</TBODY>');
+                }
+                $('#industryOverviewTable').html(NewHtml);
+            }
+
+            if (industryWidgetJson[i].Column === 2) {
+                if ($('#Level' + level + ' .leftColumn').length !== 0) {
+                    return;
+                }
+                var aWidgetId = 'centerColumn' + $.mdc.IndustryOverview.TrimBlank(industryWidgetJson[i].Title);
+                var aNewTr = '<td colspan="2"><div id=' + aWidgetId + ' class="centerColumn"></div></td>';
+                var levelHtml = ($('#Level' + level));
+                levelHtml.html(aNewTr);
+                var aDataJson = $.parseJSON(data);
+                aDataJson.Title = industryWidgetJson[i].Title;
+                $.mdc.IndustryOverview.loadOverviewTabWidget(industryWidgetJson[i].WidgeUrl, aWidgetId, aDataJson);
+            }
+            else {
+                if ($('#Level' + level + ' .leftColumn').length === 0) {
+                    var aNewTr = '<td class="leftColumn"></td><td class="rightColumn"></td>';
+                    var levelHtml = ($('#Level' + level));
+                    levelHtml.html(aNewTr);
+                }
+
+                ////leftColumn
+                if (industryWidgetJson[i].Column === 0) {
+                    var aLeftCol = $('#Level' + level + ' .leftColumn');
+                    var aWidgetId = 'leftColumn' + $.mdc.IndustryOverview.TrimBlank(industryWidgetJson[i].Title);
+                    var aHtml = aLeftCol.html() + "<div id='" + aWidgetId + "'></div>";
+                    aLeftCol.html(aHtml);
+                    var aDataJson = $.parseJSON(data);
+                    aDataJson.Title = industryWidgetJson[i].Title;
+                    $.mdc.IndustryOverview.loadOverviewTabWidget(industryWidgetJson[i].WidgeUrl, aWidgetId, aDataJson);
+                }
+                else if (industryWidgetJson[i].Column === 1) {
+                    var aRightCol = $('#Level' + level + ' .rightColumn');
+                    var aWidgetId = 'rightColumn' + $.mdc.IndustryOverview.TrimBlank(industryWidgetJson[i].Title);
+                    var aHtml = aRightCol.html() + "<div id='" + aWidgetId + "'></div>";
+                    aRightCol.html(aHtml);
+                    var aDataJson = $.parseJSON(data);
+                    aDataJson.Title = industryWidgetJson[i].Title;
+                    $.mdc.IndustryOverview.loadOverviewTabWidget(industryWidgetJson[i].WidgeUrl, aWidgetId, aDataJson);
+                }
+            }
+        });
+    },
+    OverviewTabDataReplace: function (theConentDivId, theContent) {
+        var curWidget = $("#" + theConentDivId);
+        if (!theContent) { curWidget.remove(); return; }
+        curWidget.html(theContent);
+        $.mdc.Re.QueryForOverviewDocPermission(theConentDivId);
+    },
+    GetRelativeUrl: function (url) {
+        url = unescape(url);
+        var rUrl = url.replace(/https?:\/\//i, "");
+        rUrl = rUrl.substring(rUrl.indexOf("\/"));
+        return escape(rUrl);
+    },
+    TrimBlank: function (url) {
+        return url.replace(' ', '');
+    }
+};
+
+if (!$.IndustryOverview) $.IndustryOverview = {};
+$.IndustryOverview.IssueList = {
+    InitTab: function () {
+        var addToggleEventTab = {
+            init: function () {
+                var selectDiv = $('.mdcRatingsInformationPlaceHolder');
+                $.IndustryOverview.IssueList.AddToggleAndFunc(selectDiv, '.mdcRatingsTitleRow');
+                $.IndustryOverview.IssueList.AddToggleAndFunc(selectDiv, '.mdcOrgTitleRow');
+                $.IndustryOverview.IssueList.AddToggleCss(selectDiv, '#mdcOrgSearchResultsBody');
+                $.IndustryOverview.IssueList.AddToggleCss(selectDiv, '#mdcRatingsTable');
+                $.IndustryOverview.IssueList.AddToggleCss(selectDiv, '#mdcRatingsGroupTable');
+            }
+        };
+        var tabSwitcher = $('#IssueListWidget').tabs({
+            heads: 'span.JsIssueListLabel',
+            selectedClass: 'industryLabelInactive',
+            getBody: function (tabName) { return $('#JsDiv' + tabName); }
+        }, {
+            success: function (html) {
+                var aTidyHtml = "";
+                var startIndex = html.indexOf("<body");
+                var endIndex = html.lastIndexOf("</body>");
+                if (endIndex - startIndex >= 5) {
+                    aTidyHtml = html.substring(startIndex, endIndex + 7);
+                }
+                aTidyHtml = aTidyHtml.replace(/>\s+<td/g, '><td');
+                var selectDiv = $(aTidyHtml).find('.mdcRatingsInformationPlaceHolder');
+                var isWithdrawnBtn = selectDiv.find(".mdcCheckIsWithdrawn:checked");
+                if (isWithdrawnBtn.length > 0) {
+                    selectDiv.find('Div.mdcShowAll a').attr("href", isWithdrawnBtn.data("url"));
+                }
+                $('#IssueListLabels').data("tab-switched", true);
+                return selectDiv.html();
+            }
+        });
+        tabSwitcher.register('ContentOrganizationsOrganizationList', addToggleEventTab);
+        tabSwitcher.register('ContentOrganizationsRatingActivity', addToggleEventTab);
+        tabSwitcher.register('ContentOrganizationsWatchlist', addToggleEventTab);
+        tabSwitcher.onLoad(function (event) {
+            event.curTab.body.find(".mdcCheckIsWithdrawn").click(function () {
+                var newUrl = $.mdc.replaceUrlParams($(this).data("url"), { siteapplication: "1" });
+                setTimeout(function () {
+                    event.curTab.body.empty();
+                    event.curTab.body.data('initialized', false);
+                    event.curTab.head.data("url", newUrl).click();
+                }, 100);
+            });
+        });
+        tabSwitcher.selectedTab().click();
+    },
+    AddToggleAndFunc: function (selectDiv, selectStr) {
+        selectDiv.find(selectStr).find('td:last').each(function () {
+            $(this).html('<img title="Collapse all" src="/_Layouts/Mdc/Images/ExpandOff.gif" class="mdcImgSwitch" />');
+            $(this).addClass('mdcImgSwitch').mouseover(function () {
+                $(this).find("img").mdcImgHover();
+            }).mouseout(function () {
+                $(this).find("img").mdcImgOut();
+            });
+            $(this).find('img').mdcToggle(function () {
+                $(this).parent().parent().addClass('mdcHighlight');
+                $(this).parent().parent().next().toggleClass('mdcHide');
+                $(this).attr('src', '/_layouts/Mdc/Images/CollapsOff.gif');
+            }, function () {
+                $(this).parent().parent().removeClass('mdcHighlight');
+                $(this).parent().parent().next().toggleClass('mdcHide');
+                $(this).attr('src', '/_layouts/Mdc/Images/ExpandOff.gif');
+            });
+        });
+        return selectDiv;
+    },
+    AddToggleCss: function (selectDiv, selectStr) {
+        selectDiv.find(selectStr).find('tr').hover(function () {
+            $(this).toggleClass('mdcRowSelect');
+        }, function () {
+            $(this).toggleClass('mdcRowSelect');
+        });
+    }
+};
+
+
+if (!$.mdc.TypeAhead) {
+    $.mdc.TypeAhead = {
+        LastKeyWord:'',
+        BlockSelector: '#TypeAhead',
+        SelectedIndex: -1,
+        Trigger: function (theEvent, theSearchKey) {
+            if (theSearchKey === undefined || theSearchKey === null || theSearchKey.length === 0) {
+                this.LastKeyWord = '';
+                $.mdc.TypeAhead.CallBack('');
+                return;
+            }
+            var trimSearchKey = this.KeyWordTrim(theSearchKey);
+            if (trimSearchKey === this.LastKeyWord) {
+                return;
+            }
+            this.LastKeyWord = trimSearchKey;
+            var url = '/typeahead';
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: { KeyWord: $.mdc.encodeUrl(trimSearchKey) },
+                cache: false,
+                dataType: "html",
+                async: true
+            })
+                .done(function (returnHtml) {
+                    $.mdc.TypeAhead.CallBack(returnHtml);
+                });
+        },
+        KeyWordTrim: function (keyWord) {
+            var regex = /[^A-Za-z0-9\u2E80-\u9FFF]+/g; //only support chinese, english and japaness
+            var newkeyWord = keyWord.replace(regex, ' ');
+            return newkeyWord.trim();
+        },
+        CallBack: function (theReturnHtml) {
+            var isKeyWordEmpty = this.LastKeyWord === '';
+            if (isKeyWordEmpty) {
+                theReturnHtml = '';
+
+                $("#mdcTypeAheadSpace").html(theReturnHtml);
+                $("#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight").removeClass('mdcHide');
+                $('#mdcTypeAheadSpace').prepend('<iframe scrolling="no" frameborder="0"/>');
+                $('#mdcTypeAheadSpace iframe').height($('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width());
+                $('#mdcTypeAheadSpaceBottom').css('top', $('#mdcTypeAheadSpace').position().top + $('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width() - 8);
+                $('#mdcTypeAheadSpaceRight').css('left', $('#mdcTypeAheadSpace').position().left + $('#mdcTypeAheadSpace').width()).height($('#mdcTypeAheadSpace').height());
+            }
+
+            if (this.HasRquestExpire(theReturnHtml)) {
+                return;
+            }
+
+            $("#mdcTypeAheadSpace").html(theReturnHtml);
+            $("#mdcTypeAheadSpace, #mdcTypeAheadSpaceBottom, #mdcTypeAheadSpaceRight").removeClass('mdcHide');
+            $('#mdcTypeAheadSpace').prepend('<iframe scrolling="no" frameborder="0"/>');
+            $('#mdcTypeAheadSpace iframe').height($('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width());
+            $('#mdcTypeAheadSpaceBottom').css('top', $('#mdcTypeAheadSpace').position().top + $('#mdcTypeAheadSpace').height()).width($('#mdcTypeAheadSpace').width() - 8);
+            $('#mdcTypeAheadSpaceRight').css('left', $('#mdcTypeAheadSpace').position().left + $('#mdcTypeAheadSpace').width()).height($('#mdcTypeAheadSpace').height());
+
+            if (!isKeyWordEmpty) {
+                $.mdc.TypeAhead.EventBinding($(this.BlockSelector));
+            }
+        },
+        HasRquestExpire: function (html) {
+            if ($(html).data('kw') == this.LastKeyWord) {
+                return false;
+            }
+            return true;
+        },
+        EventBinding: function (selector) {
+            /* hover event */
+            var rowDivs = $(selector).find('.rows').children('Div');
+            rowDivs.hover(function () {
+                $(this).addClass('mdcTypeAheadSelected');
+            },
+                function () {
+                    $(this).removeClass('mdcTypeAheadSelected');
+                });
+
+            rowDivs.click(function (event) {
+                $.mdc.pushPreviousPageCookie();
+
+                $.mdc.TypeAhead.WebTrends.TrackEvent(event);
+
+                var url = $(this).data('url');
+                window.location.href = url;
+            });
+        },
+        WebTrends: {
+            TrackEvent: function (event) {
+                var row = event.currentTarget;
+                if ($(row).hasClass('Dataitem')) {
+                    this.TrackItem(row);
+                }
+                if ($(row).hasClass('Morelink')) {
+                    this.TrackMoreLink(row);
+                }
+            },
+            TrackItem: function (row) {
+                var WbJson = this.GetWebTrendsData(row);
+                if (WbJson === undefined || WbJson === null) {
+                    return;
+                }
+
+                var aItemId = WbJson.id;
+                var aItemType = $(row).closest('.block').data('type');
+                var slotIndex = $(row).index() + 1;
+
+                var aKeyWord = '';
+                if ($('#kw').val() != null) {
+                    aKeyWord = "TA~" + aItemType + "~" + $('#kw').val() + "~" + aItemId + "~" + slotIndex;
+                }
+                var aDcsuri = "TypeAhead/" + aItemType + "/Slot" + slotIndex;
+                dcsMultiTrack('DCS.dcsuri', aDcsuri, 'WT.oss', aKeyWord, 'WT.oss_r', '1', 'WT.cg_n', 'SearchTA', 'WT.cg_s', '', 'WT.dl', '99', 'WT.z_previouspage', window.location.href, 'WT.pn_sku', '');
+            },
+            TrackMoreLink: function (row) {
+                var block = $(row).closest('.block');
+                if (block.attr('id') === 'Org') {
+                    dcsMultiTrack('DCS.dcsuri', 'TypeAhead/Slot9', 'WT.oss', '', 'WT.oss_r', '', 'WT.cg_s', '', 'WT.cg_n', 'SearchTA', 'WT.dl', '99', 'WT.pn_sku', '');
+                }
+            },
+            GetWebTrendsData: function (row) {
+                var jsonData = $(row).data('webtrends');
+                if (jsonData != undefined) {
+                    return jsonData;
+                }
+                return null;
+            }
+        }
+    };
+}

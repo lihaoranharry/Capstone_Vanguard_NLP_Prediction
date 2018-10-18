@@ -1,0 +1,195 @@
+// SocialLinks 
+// <script src="/_layouts/Mdc/Scripts/mdc_sociallinks_webtrends_17.0.0.0.js" type="text/javascript"></script>
+(function (win) {
+
+    if (typeof win.dcsMultiTrack !== 'function') {
+        win.dcsMultiTrack = function () { };
+    }
+
+    if (typeof win.mdcCleanUpProps !== 'function') {
+        win.mdcCleanUpProps = function () { };
+    }
+
+    function SocialLinks(type) {
+        this.tracker = function () { };
+        this.hashLinks = {};
+        switch (type) {
+            case 'home':
+                this.tracker = homeTracker;
+                this.hashLinks = {
+                    'MoodysInvestorsServiceResearch-twittercomMoodysInvSvc': 'home_follow_MoodysInvSvc',
+                    'MoodysAnalyticsNews-wwwtwittercomMoodysAnalytics': 'home_follow_MoodysAnalyticsNews',
+                    'MoodysCompanyPage-wwwlinkedincomcompanymoodyscorporation': 'home_follow_MoodysCompanyPage',
+                    'MoodysRatingsNewsandResearchHighlightsGroup-wwwlinkedincomgroupsgid4238586': 'home_follow_MoodysRNRHGroup'
+                };
+                break;
+
+            case 'landing':
+                this.tracker = landingTracker;
+                this.hashLinks = {
+                    'MCOCompanyPage-wwwlinkedincomcompanymoodyscorporation': 'LP_follow_Linkedin_MCOCompanyPage',
+                    'MISCompanyPage-wwwlinkedincomcompanymoodysinvestorsservice': 'LP_follow_Linkedin_MISCompanyPage',
+                    'MACompanyPage-wwwlinkedincomcompanymoodysanalytics': 'LP_follow_Linkedin_MACompanyPage',
+
+                    // linkedin
+                    'MoodysAlumni-wwwlinkedincomgroupsgid911347': 'LP_follow_Linkedin_MoodysAlumni',
+                    'ProfDevelopmentExchange-wwwlinkedincomgroupsgid3850765': 'LP_follow_Linkedin_ProfDevelopmentExchange',
+                    'MAFermatCADRRTUserComm-wwwlinkedincomgroupsgid3203247': 'LP_follow_Linkedin_MAFermatUserComm',
+                    'TheEconomicOutlook-wwwlinkedincomgroupsgid2573216': 'LP_follow_Linkedin_TheEconOutlook',
+                    'MoodysRatingsNewsResearchHighlights-wwwlinkedincomgroupsgid4238586': 'LP_follow_Linkedin_MoodysRNRH',
+                    'AsiaPacHighYieldBondMarket-wwwlinkedincomgroupsgid3820956': 'LP_follow_Linkedin_AsiaPacHighYieldBondMkt',
+                    'AsiaPacStructuredFinance-wwwlinkedincomgroupsgid2822424': 'LP_follow_Linkedin_AsiaPacStructuredFinance',
+                    'CreditEdge-BestPracticesofCreditRisk-wwwlinkedincomgroupsgid4295586': 'LP_follow_Linkedin_CreditEdge',
+                    'CredentialsforFinancialProfessionals-wwwlinkedincomgroupsgid3720042': 'LP_follow_Linkedin_CredentialsForFinancialProf',
+                    'PersonalFinancialPlannerDesignationHolders-wwwlinkedincomgroupsgid3724220': 'LP_follow_Linkedin_PersonalFinancialPlanner',
+                    'CharteredStrategicWealthProfessionalDesignation-wwwlinkedincomgroupsgid3724212': 'LP_follow_Linkedin_CSWP',
+                    'CharteredInvestmentManagerDesignationHolders-wwwlinkedincomgroupsgid3978679': 'LP_follow_Linkedin_CIM',
+
+                    // twitter
+                    'MoodysInvestorsServiceResearchRatingsFeed-wwwtwittercomMoodysRatings': 'LP_follow_Twitter_MISResearchRatingsFeed',
+                    'EMEASovereigns-wwwtwittercomMoodysEMEAsovrn': 'LP_follow_Twitter_EMEASov',
+                    'EMEABanking-wwwtwittercomMoodysEMEAbnkng': 'LP_follow_Twitter_EMEABanking',
+                    'APACBanking-wwwtwittercomMoodysAPACbnkng': 'LP_follow_Twitter_APACBanking',
+                    'NorthAmericaBanking-wwwtwittercomMoodysNAbanking': 'LP_follow_Twitter_NorthAmericaBanking',
+                    'Covenants-wwwtwittercomMoodysCovenants': 'LP_follow_Twitter_Covenants',
+                    'NorthAmericaInsurance-wwwtwittercomMoodysNAinsrnce': 'LP_follow_Twitter_NorthAmericaInsurance',
+                    'USRetail-wwwtwittercomMoodysUSretail': 'LP_follow_Twitter_USRetail',
+                    'NorthAmericaIndustrials-wwwtwittercomMoodysNAindstrl': 'LP_follow_Twitter_NorthAmericaIndustrials',
+                    'TechMediaandTelecom-wwwtwittercomMoodysNAtmt': 'LP_follow_Twitter_TechMediaTelecom',
+                    'USPublicFinance-wwwtwittercomMoodysUSpubfin': 'LP_follow_Twitter_USPublicFinance',
+                    'MoodysCreditOutlook-wwwtwittercomMoodysCO': 'LP_follow_Twitter_MCO',
+                    'WeeklyMarketOutlook-wwwtwittercomMoodysWMO': 'LP_follow_Twitter_WMO',
+                    'MAMain-wwwtwittercomMoodysAnalytics': 'LP_follow_Twitter_MA',
+                    'MACapitalMarkets-wwwtwittercomMA_CapitalMkts': 'LP_follow_Twitter_MAcapitalMkts',
+                    'MADismalScientist-wwwtwittercomDismalScientist': 'LP_follow_Twitter_MADismalScientist',
+                    'CSIGlobalEducation-wwwtwittercomCSIGlobalEd': 'LP_follow_Twitter_CSI',
+                    'MoodysCareers-wwwtwittercomMoodysCareers': 'LP_follow_Twitter_MoodysCareers',
+                    'MoodysBizcomFeed-wwwtwittercommoodysbiz': 'LP_follow_Twitter_MoodysBizFeed',
+
+                    // blogs
+                    'CSIBlog-csiblogcsica': 'LP_follow_Blogs_CSI',
+                    'MADismalScientistBlogDataPoints-wwweconomycomdismalblogblog_mainasp': 'LP_follow_Blogs_MADismalScientist',
+                    'MADataBuffetBlog-wwweconomycomsupportblogbuffetaspx': 'LP_follow_Blogs_MADataBuffet',
+
+                    // youtube
+                    'TheMoodysFoundation-wwwyoutubecomTheMoodysFoundation': 'LP_follow_YouTube_MoodysFoundation'
+                };
+                break;
+        }
+    }
+
+    SocialLinks.prototype = {
+        constructor: SocialLinks,
+        track: function (obj/*{name:'', target:'http:// ...'}*/) {
+            obj.target = decodeURI(obj.target);
+            obj.name = friendNamed(decodeHTML(obj.name));
+            obj.linkId = filter(obj, this.hashLinks);
+            if (obj.linkId != '') {
+                cleanupTracker([
+                    "WT.cg_n", "WT.cg_s", "WT.cg_sec3", "WT.cg_sec4",
+                    "WT.cg_sec5", "WT.cg_sec6", "cg_sec6", "WT.pn_sku",
+                    "WT.pn_id", "WT.z_referringsource", "WT.nv", "WT.si_n",
+                    "WT.si_x", "WT.si_cs", "WT.oss", "WT.oss_r"
+                ]);
+                this.tracker(obj);
+                cleanupTracker(['WT.ti', 'WT.z_previouspage','WT.z_referringsource', 'WT.dl', 'WT.mc_id']);
+
+                return true;
+            }
+
+            return false;
+        }
+    };
+
+    function cleanupTracker(/* ['a', 'b'] or 'a', 'b' */) {
+        var alen = arguments.length,
+            vals = [],
+            i = 0;
+        if (alen > 0) {
+            if (alen == 1) {
+                if (arguments[0] instanceof Array) {
+                    vals = arguments[0];
+                } else {
+                    vals[vals.length] = arguments[0];
+                }
+            } else if (alen > 1) {
+                for (i = 0; i < alen; i++) {
+                    vals[vals.length] = arguments[i];
+                }
+            }
+
+            win.mdcCleanUpProps(vals.join(';'));
+        }
+    }
+
+    function decodeHTML(input) {
+        var converter = document.createElement("DIV"),
+            output;
+
+        // assign to HTML
+        converter.innerHTML = input;
+
+        // convert, get from text.
+        output = converter.innerText || converter.textContent;
+        converter = null;
+
+        return output;
+    }
+
+    function filter(obj, hash) {
+        var key = obj.name + '-' + keyOfURL(obj.target);
+        if (typeof hash[key] === 'string') {
+            return hash[key];
+        }
+
+        return '';
+    }
+
+    function friendNamed(name) {
+        return name.replace(/[\s'"&\.\/\\,\(\)]/g, '');
+    }
+
+    function keyOfURL(url) {
+        return url.replace(/(https?:\/\/|[\s'"&\.\/\\,\(\)\=\-\?])/g, '');
+    }
+
+    function fixedURL(url) {
+        var fixedurl = url.replace(/https?:\/\//, 'Offsite:');
+        if (fixedurl.indexOf('?') == -1) {
+            fixedurl += '?';
+        }
+
+        return fixedurl;
+    }
+
+    function homeTracker(obj) {
+        win.dcsMultiTrack({
+            'WT.ti': fixedURL(obj.target),
+            'WT.z_previouspage': '/',
+            'WT.dl': '24',
+            'WT.z_referringsource': obj.linkId
+        });
+    }
+
+    function landingTracker(obj) {
+        win.dcsMultiTrack({
+            'WT.ti': fixedURL(obj.target),
+            'WT.z_previouspage': '/SocialMediaLandingPage',
+            'WT.dl': '24',
+            'WT.z_referringsource': obj.linkId
+        });
+    }
+
+    var st = '',
+        path = win.location.pathname.toLowerCase();
+
+    if (path == '/') {
+        st = 'home';
+    } else if (path.indexOf('/pages/moodys-social-media.aspx') == 0) {
+        st = 'landing';
+    }
+
+    if (st != '') {
+        win.socialLinksTracker = new SocialLinks(st);
+    }
+})(window);
